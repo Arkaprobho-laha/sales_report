@@ -47,9 +47,12 @@
   // STATE
   // =====================================================================
 
+  const DEBUG_PAGE_SIZE = 20;
+
   const state = {
     token: '',
-    debugLog: []
+    debugLog: [],
+    debugPage: 0   // 0-based index of the currently displayed page
   };
 
   const els = {};
@@ -108,6 +111,10 @@
     els.debugDrawer = document.getElementById('debugDrawer');
     els.debugLog = document.getElementById('debugLog');
     els.closeDebugBtn = document.getElementById('closeDebugBtn');
+    els.debugPagination = document.getElementById('debugPagination');
+    els.debugPrevBtn = document.getElementById('debugPrevBtn');
+    els.debugNextBtn = document.getElementById('debugNextBtn');
+    els.debugPageInfo = document.getElementById('debugPageInfo');
   }
 
   // =====================================================================
@@ -124,8 +131,10 @@
     els.ctmBackdrop.addEventListener('click', onCancelChange);
     els.snapshotBtn.addEventListener('click', takeSnapshot);
     els.emailBtn.addEventListener('click', emailSnapshot);
-    els.debugBtn.addEventListener('click', function () { els.debugDrawer.hidden = false; });
+    els.debugBtn.addEventListener('click', function () { els.debugDrawer.hidden = false; renderDebugPage(); });
     els.closeDebugBtn.addEventListener('click', function () { els.debugDrawer.hidden = true; });
+    els.debugPrevBtn.addEventListener('click', function () { goToDebugPage(state.debugPage - 1); });
+    els.debugNextBtn.addEventListener('click', function () { goToDebugPage(state.debugPage + 1); });
   }
 
   // =====================================================================
@@ -190,9 +199,13 @@
     loadDashboard(true);
   }
 
+  // Local-only disconnect: this device stops using the token and goes back
+  // to the login form, but the shared global token is left untouched —
+  // every other device stays connected. The global session only changes
+  // when a NEW token is actually submitted (onConnectClick / onApplyToken)
+  // or when the API rejects the token as truly expired (handleAuthFailure).
   function onDisconnect() {
     state.token = '';
-    clearGlobalToken();        // clear global session so everyone is disconnected
     els.reportRoot.hidden = true;
     els.tokenInput.value = '';
     enterDisconnectedState();
@@ -331,19 +344,64 @@
   }
   AuthError.prototype = Object.create(Error.prototype);
 
+  // New requests always jump the view to the LAST page (most recent
+  // entries) so live traffic is visible while the drawer is open, unless
+  // the user has manually paged backward to look at older calls — in that
+  // case we leave them where they are and just update the page count.
   function renderDebugEntry(entry) {
-    const div = document.createElement('div');
-    div.className = 'debug-entry';
-    const bodyStr = typeof entry.body === 'string'
-      ? entry.body : JSON.stringify(entry.body, null, 2);
-    div.innerHTML =
-      '<div class="debug-entry-title' +
-      (entry.status >= 400 ? ' debug-entry-error' : '') + '">' +
-      escapeHtml(entry.status + '  ' + entry.url) +
-      '  (' + entry.latency + 'ms)</div>' +
-      '<pre>' + escapeHtml((bodyStr || '').slice(0, 4000)) + '</pre>';
-    els.debugLog.appendChild(div);
-    els.debugLog.scrollTop = els.debugLog.scrollHeight;
+    const wasOnLastPage = state.debugPage >= totalDebugPages() - 1;
+    if (wasOnLastPage) {
+      state.debugPage = totalDebugPages() - 1; // recompute after push, land on new last page
+    }
+    if (!els.debugDrawer.hidden) {
+      renderDebugPage();
+    }
+  }
+
+  function totalDebugPages() {
+    return Math.max(1, Math.ceil(state.debugLog.length / DEBUG_PAGE_SIZE));
+  }
+
+  function goToDebugPage(page) {
+    const total = totalDebugPages();
+    state.debugPage = Math.min(Math.max(page, 0), total - 1);
+    renderDebugPage();
+  }
+
+  function renderDebugPage() {
+    const total = totalDebugPages();
+    state.debugPage = Math.min(Math.max(state.debugPage, 0), total - 1);
+
+    els.debugLog.innerHTML = '';
+
+    if (state.debugLog.length === 0) {
+      els.debugPagination.hidden = true;
+      return;
+    }
+
+    const start = state.debugPage * DEBUG_PAGE_SIZE;
+    const pageEntries = state.debugLog.slice(start, start + DEBUG_PAGE_SIZE);
+
+    pageEntries.forEach(function (entry) {
+      const div = document.createElement('div');
+      div.className = 'debug-entry';
+      const bodyStr = typeof entry.body === 'string'
+        ? entry.body : JSON.stringify(entry.body, null, 2);
+      div.innerHTML =
+        '<div class="debug-entry-title' +
+        (entry.status >= 400 ? ' debug-entry-error' : '') + '">' +
+        escapeHtml(entry.status + '  ' + entry.url) +
+        '  (' + entry.latency + 'ms)</div>' +
+        '<pre>' + escapeHtml((bodyStr || '').slice(0, 4000)) + '</pre>';
+      els.debugLog.appendChild(div);
+    });
+
+    els.debugPagination.hidden = total <= 1;
+    els.debugPageInfo.textContent =
+      'Page ' + (state.debugPage + 1) + ' of ' + total +
+      ' (' + state.debugLog.length + ' calls)';
+    els.debugPrevBtn.disabled = state.debugPage === 0;
+    els.debugNextBtn.disabled = state.debugPage === total - 1;
   }
 
   function escapeHtml(s) {
@@ -387,8 +445,9 @@
   function loadDashboard(fromConnect) {
     const isFirstLoad = els.reportRoot.hidden;
     hideErrorBanner();
-    els.debugLog.innerHTML = '';
     state.debugLog = [];
+    state.debugPage = 0;
+    if (!els.debugDrawer.hidden) renderDebugPage(); else els.debugLog.innerHTML = '';
     els.refreshBtn.disabled = true;
 
     if (isFirstLoad) {
