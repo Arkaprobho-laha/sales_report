@@ -28,7 +28,18 @@ module.exports = async function handler(req, res) {
   const imageBuffer = Buffer.from(base64Data, 'base64');
 
   // ── Build email
-  const dateStr = dashboardDate || new Date().toLocaleDateString('en-IN');
+  // dashboardDate normally comes from the browser (already correct local
+  // date). This fallback only fires if that's missing — explicitly locked
+  // to Asia/Kolkata since toLocaleDateString('en-IN') alone only changes
+  // the digit *format*, not the timezone the date is computed in; without
+  // it, Vercel's UTC server clock would show the previous day between
+  // 12:00 AM and 5:29 AM IST.
+  const dateStr = dashboardDate || new Date().toLocaleDateString('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
   const emailSubject = subject || `DALUCI Sales Dashboard — ${dateStr}`;
   const recipients = MAIL_RECIPIENTS.split(',').map(e => e.trim()).filter(Boolean);
 

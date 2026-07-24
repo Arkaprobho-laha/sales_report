@@ -806,20 +806,20 @@
     var savedOverflow = outers.map(function (el) { return el.style.overflow; });
     outers.forEach(function (el) { el.style.overflow = 'visible'; });
 
-    var savedBg = target.style.background;
+    var savedBg  = target.style.background;
     var savedPad = target.style.padding;
     target.style.background = '#f0ece4';         // warm cream — matches page body
-    target.style.padding = '20px 28px 36px';  // top / left+right / bottom
+    target.style.padding    = '20px 28px 36px';  // top / left+right / bottom
 
     function restore() {
       outers.forEach(function (el, i) { el.style.overflow = savedOverflow[i]; });
       target.style.background = savedBg;
-      target.style.padding = savedPad;
+      target.style.padding    = savedPad;
     }
 
     var opts = {
-      pixelRatio: 2,
-      skipFonts: true,       // avoid the Google Fonts CORS fetch hanging the promise
+      pixelRatio:      2,
+      skipFonts:       true,       // avoid the Google Fonts CORS fetch hanging the promise
       backgroundColor: '#f0ece4',  // cream fill for any transparent gaps
       height: target.scrollHeight + 56,
       filter: function (node) {
@@ -833,7 +833,7 @@
 
     return capture
       .then(function (result) { restore(); return result; })
-      .catch(function (err) { restore(); throw err; });
+      .catch(function (err)   { restore(); throw err; });
   }
 
   // =====================================================================
@@ -899,10 +899,17 @@
       btn.innerHTML = origHTML;
     }
 
-    // Get today's date string for the email subject
-    var now = new Date();
-    var dateStr = String(now.getDate()).padStart(2, '0') + '/' +
-      String(now.getMonth() + 1).padStart(2, '0') + '/' + now.getFullYear();
+    // Get today's date string for the email subject.
+    // Explicitly locked to Asia/Kolkata so the date is always correct
+    // regardless of device/server timezone settings (avoids the classic
+    // "date off by one" bug during 12:00 AM–5:30 AM IST, when UTC is
+    // still on the previous calendar day).
+    var dateStr = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Kolkata',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    }).format(new Date());
 
     captureSnapshot('png')
       .then(function (dataUrl) {
