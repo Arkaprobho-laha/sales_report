@@ -61,12 +61,17 @@ module.exports = async function handler(req, res) {
           <h1 style="margin: 0; font-size: 22px; letter-spacing: 2px;">DALUCI</h1>
           <p style="margin: 4px 0 0; font-size: 13px; color: #a0b4c8;">Sales Dashboard Report · ${dateStr}</p>
         </div>
-        <div style="background: #f5f0e8; padding: 20px 28px; border-radius: 0 0 10px 10px;">
-          <p style="font-size: 14px; color: #333;">Hi Team,</p>
-          <p style="font-size: 14px; color: #333;">
-            Please find the latest sales dashboard snapshot attached below.
+        <div style="background: #f5f0e8; padding: 24px 28px; border-radius: 0 0 10px 10px;">
+          <p style="font-size: 14px; color: #333; margin: 0 0 12px;">Hi Team,</p>
+          <p style="font-size: 14px; color: #333; line-height: 1.6; margin: 0 0 12px;">
+            Attached is the latest DALUCI sales dashboard — channel-wise performance, monthly
+            run-rate, and ad spend across all platforms, current as of ${dateStr}.
           </p>
-          <p style="font-size: 11px; color: #888; margin-top: 24px;">
+          <p style="font-size: 14px; color: #333; line-height: 1.6; margin: 0 0 12px;">
+            Take a look and flag anything that needs follow-up.
+          </p>
+          <p style="font-size: 14px; color: #333; margin: 20px 0 0;">Best,<br/>DALUCI Dashboard</p>
+          <p style="font-size: 11px; color: #888; margin-top: 22px; border-top: 1px solid #e0d8c8; padding-top: 12px;">
             This is an automated email from the DALUCI Sales Dashboard.
           </p>
         </div>
