@@ -811,13 +811,59 @@
       String(d.getMinutes()).padStart(2, '0');
   }
 
-  function takeSnapshot() {
-    var target = els.snapshotArea;
-    if (!target) { alert('Snapshot area not found.'); return; }
+  // =====================================================================
+  // CAPTURE HELPER  (shared by Snapshot button and Email button)
+  // =====================================================================
 
-    if (target.querySelector('.skel-row')) {
-      alert('Dashboard is still loading. Please wait a moment.');
-      return;
+  // Returns a Promise<string> that resolves to a data URL of the snapshot.
+  // Fixes applied here:
+  //   1. backgroundColor fills the cream gaps between dark tables.
+  //   2. Inline background set on target as a belt-and-suspenders measure.
+  //   3. height: target.scrollHeight ensures the full ads table is captured.
+  //   4. 16px padding gives a clean border around the capture.
+  function captureSnapshotDataUrl() {
+    var target = els.snapshotArea;
+
+    // Expand scroll containers so full table width is captured
+    var outers = Array.from(target.querySelectorAll('.tbl-outer'));
+    var savedOF  = outers.map(function (el) { return el.style.overflow; });
+    outers.forEach(function (el) { el.style.overflow = 'visible'; });
+
+    // Set background + padding on the container itself
+    var savedBg  = target.style.background;
+    var savedPad = target.style.padding;
+    target.style.background = '#f0ece4';   // warm cream — matches page
+    target.style.padding    = '16px';
+
+    function restoreStyles() {
+      outers.forEach(function (el, i) { el.style.overflow = savedOF[i]; });
+      target.style.background = savedBg;
+      target.style.padding    = savedPad;
+    }
+
+    return htmlToImage.toPng(target, {
+      pixelRatio:      2,
+      skipFonts:       true,               // skip Google Fonts fetch (CORS hang)
+      backgroundColor: '#f0ece4',          // cream fill for transparent gaps
+      // Use scrollHeight so the full ads table is always captured,
+      // even when it extends below the current viewport
+      height: target.scrollHeight + 16,
+      filter: function (node) {
+        return !(node.classList && node.classList.contains('inline-edit-input'));
+      }
+    })
+    .then(function (dataUrl) { restoreStyles(); return dataUrl; })
+    .catch(function (err)    { restoreStyles(); throw err;    });
+  }
+
+  // =====================================================================
+  // SNAPSHOT  (download as PNG)
+  // =====================================================================
+
+  function takeSnapshot() {
+    if (!els.snapshotArea) { alert('Snapshot area not found.'); return; }
+    if (els.snapshotArea.querySelector('.skel-row')) {
+      alert('Dashboard is still loading. Please wait a moment.'); return;
     }
 
     var btn = els.snapshotBtn;
