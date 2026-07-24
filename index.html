@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DALUCI | Sales Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div class="app-shell">
+
+    <!-- ══ AUTH SECTION ══
+       State A (default): auth-section--open  → full-page form
+       State B (connected): auth-section--bar → sticky thin bar
+  -->
+    <div id="authSection" class="auth-section auth-section--open">
+
+      <!-- [A] Disconnected form -->
+      <div id="authForm" class="auth-form">
+        <div class="af-card">
+          <div class="af-brand">DALUCI</div>
+          <div class="af-sub">Sales Dashboard · Intelligence Portal</div>
+          <p class="af-hint">
+            Paste your API bearer token below. It's saved locally and reused
+            automatically — you'll only be asked again if the API rejects it.
+          </p>
+          <label for="tokenInput" class="af-label">Bearer Token</label>
+          <textarea id="tokenInput" class="af-textarea" rows="3" placeholder="eyJhbGciOi…"></textarea>
+          <div id="loginError" class="af-error" hidden></div>
+          <button id="connectBtn" class="btn-connect">Connect to Dashboard</button>
+          <p class="af-foot">Token is stored only in this browser's local storage.</p>
+        </div>
+      </div>
+
+      <!-- [B] Connected bar (hidden initially) -->
+      <div id="connBar" class="conn-bar" hidden>
+        <div class="cb-left">
+          <span class="cb-brand">DALUCI</span>
+          <span class="cb-sep">·</span>
+          <span class="cb-title">Sales Dashboard</span>
+        </div>
+        <div class="cb-center">
+          <span class="cb-dot"></span>
+          <span class="cb-status">API Connected</span>
+          <span class="cb-token" id="cbToken"></span>
+        </div>
+        <div class="cb-right">
+          <span id="lastRefreshed" class="cb-refreshed"></span>
+          <div id="refreshIndicator" class="refresh-indicator" hidden>
+            <div class="mini-spinner"></div><span>Refreshing…</span>
+          </div>
+          <!-- Transparent button card -->
+          <div class="cb-btn-group">
+            <button id="snapshotBtn" class="btn-cb btn-cb-amber" title="Download tables 1–3 as image">📸
+              Snapshot</button>
+            <button id="refreshBtn" class="btn-cb btn-cb-cyan">⟳ Refresh</button>
+            <button id="changeTokenBtn" class="btn-cb">🔑 Token</button>
+            <button id="debugBtn" class="btn-cb">Debug</button>
+            <button id="disconnectBtn" class="btn-cb btn-cb-danger">⏻ Disconnect</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /authSection -->
+
+    <!-- ══ CHANGE TOKEN MODAL (portal-level overlay) ══ -->
+    <div id="changeTokenModal" class="ctm" hidden>
+      <div class="ctm-backdrop" id="ctmBackdrop"></div>
+      <div class="ctm-card">
+        <div class="ctm-title">🔑 Update API Token</div>
+        <p class="ctm-hint">Paste your new bearer token. The old one will be replaced immediately.</p>
+        <textarea id="newTokenInput" class="af-textarea" rows="3" placeholder="eyJhbGciOi…"></textarea>
+        <div id="newTokenError" class="af-error" hidden></div>
+        <div class="ctm-actions">
+          <button id="applyTokenBtn" class="btn-connect ctm-apply">Apply &amp; Reconnect</button>
+          <button id="cancelChangeBtn" class="btn-cb">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ DASHBOARD CONTENT ══ -->
+    <div id="dashContent" class="dash-content" hidden>
+
+      <!-- Auth success toast -->
+      <div id="authToast" class="auth-toast">✓ API Authentication Successful</div>
+
+      <!-- Snapshot flash overlay -->
+      <div id="snapshotFlash" class="snapshot-flash"></div>
+
+      <!-- First-load spinner -->
+      <div id="loadState" class="load-state">
+        <div class="spinner"></div>
+        <div id="loadStateText">Connecting to Database…</div>
+      </div>
+
+      <!-- Error banner -->
+      <div id="errorBanner" class="error-banner" hidden></div>
+
+      <!-- Report -->
+      <div id="reportRoot" class="report-root" hidden>
+
+        <!-- Snapshot area: first 3 tables -->
+        <div id="snapshotArea" class="snapshot-area">
+
+          <!-- Table 1: Channel-wise -->
+          <div class="tbl-outer">
+            <table class="mis-table" id="channelTable">
+              <thead>
+                <tr class="title-row">
+                  <th colspan="6" id="reportTitleCell">DALUCI&nbsp;&nbsp;|&nbsp;&nbsp;SALES DASHBOARD (—)</th>
+                </tr>
+                <tr class="section-row">
+                  <th colspan="6">Channel-wise Performance</th>
+                </tr>
+                <tr class="group-row">
+                  <th></th>
+                  <th colspan="2">ALL BRANDS</th>
+                  <th colspan="2">DALUCI BRAND</th>
+                  <th></th>
+                </tr>
+                <tr class="col-row">
+                  <th>Channel</th>
+                  <th>Order</th>
+                  <th>GMV (₹)</th>
+                  <th>Order</th>
+                  <th>GMV (₹)</th>
+                  <th>Sales Contribution</th>
+                </tr>
+              </thead>
+              <tbody id="channelTableBody"></tbody>
+            </table>
+          </div>
+
+          <!-- Table 2: Monthly Runrate -->
+          <div class="tbl-outer tbl-outer--medium">
+            <table class="mis-table" id="runrateTable">
+              <thead>
+                <tr class="section-row">
+                  <th colspan="3">Monthly Runrate (Updated to the Latest Date of Each Platform)</th>
+                </tr>
+                <tr class="col-row">
+                  <th>Metric</th>
+                  <th>Order</th>
+                  <th>GMV (₹)</th>
+                </tr>
+              </thead>
+              <tbody id="runrateTableBody"></tbody>
+            </table>
+          </div>
+
+          <!-- Table 3: Ads Spend -->
+          <div class="tbl-outer">
+            <table class="mis-table" id="adsTable">
+              <thead>
+                <tr class="section-row">
+                  <th colspan="5">Ads Spend by Channel</th>
+                </tr>
+                <tr class="group-row">
+                  <th></th>
+                  <th colspan="2">ALL BRANDS</th>
+                  <th colspan="2">DALUCI BRAND</th>
+                </tr>
+                <tr class="col-row">
+                  <th>Channel</th>
+                  <th>Yesterday Ads (₹)</th>
+                  <th>This Month Ads (₹)</th>
+                  <th>Yesterday Ads (₹)</th>
+                  <th>This Month Ads (₹)</th>
+                </tr>
+              </thead>
+              <tbody id="adsTableBody"></tbody>
+            </table>
+          </div>
+
+        </div><!-- /snapshotArea -->
+
+        <!-- Table 4: Upload Dates -->
+        <div class="tbl-outer tbl-outer--narrow">
+          <table class="mis-table" id="uploadDatesTable">
+            <thead>
+              <tr class="section-row">
+                <th colspan="2">Latest Data Upload Date per Platform</th>
+              </tr>
+              <tr class="col-row">
+                <th>Platform</th>
+                <th>Last Upload Date</th>
+              </tr>
+            </thead>
+            <tbody id="uploadDatesTableBody"></tbody>
+          </table>
+        </div>
+
+        <p class="edit-hint">💡 Double-click any data cell to edit its value inline.</p>
+
+      </div><!-- /reportRoot -->
+
+
+    </div><!-- /dashContent -->
+
+    <!-- ══ DEBUG DRAWER ══ -->
+    <div id="debugDrawer" class="debug-drawer" hidden>
+      <div class="debug-drawer-header">
+        <span>Raw API Calls</span>
+        <button id="closeDebugBtn" class="btn-cb">Close</button>
+      </div>
+      <div id="debugLog" class="debug-log"></div>
+    </div>
+
+  </div><!-- /app-shell -->
+
+  <!-- html-to-image: more reliable than html2canvas for CSS-heavy dark UIs -->
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.umd.min.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>
