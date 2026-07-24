@@ -28,13 +28,18 @@ module.exports = async function handler(req, res) {
   const imageBuffer = Buffer.from(base64Data, 'base64');
 
   // ── Build email
-  // dashboardDate normally comes from the browser (already correct local
-  // date). This fallback only fires if that's missing — explicitly locked
-  // to Asia/Kolkata since toLocaleDateString('en-IN') alone only changes
-  // the digit *format*, not the timezone the date is computed in; without
-  // it, Vercel's UTC server clock would show the previous day between
+  // dashboardDate normally comes from the browser (already the correct
+  // report date — see app.js emailSnapshot, which sends "today - 1" since
+  // the report always shows data as of the latest upload, one day behind
+  // today). This fallback only fires if that's missing, so it must apply
+  // the same "-1 day" here too, or the email would show a date one day
+  // ahead of what the attached snapshot actually says. Locked to
+  // Asia/Kolkata since toLocaleDateString('en-IN') alone only changes the
+  // digit *format*, not the timezone the date is computed in; without it,
+  // Vercel's UTC server clock would be off by a further day between
   // 12:00 AM and 5:29 AM IST.
-  const dateStr = dashboardDate || new Date().toLocaleDateString('en-GB', {
+  const yesterdayIST = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const dateStr = dashboardDate || yesterdayIST.toLocaleDateString('en-GB', {
     timeZone: 'Asia/Kolkata',
     day: '2-digit',
     month: '2-digit',

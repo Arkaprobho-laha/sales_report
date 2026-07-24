@@ -1005,17 +1005,15 @@
       btn.innerHTML = origHTML;
     }
 
-    // Get today's date string for the email subject.
-    // Explicitly locked to Asia/Kolkata so the date is always correct
-    // regardless of device/server timezone settings (avoids the classic
-    // "date off by one" bug during 12:00 AM–5:30 AM IST, when UTC is
-    // still on the previous calendar day).
-    var dateStr = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Asia/Kolkata',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    }).format(new Date());
+    // Get the report's date string for the email subject/body.
+    // IMPORTANT: this must match the dashboard's own header date, which is
+    // always "today - 1" (see loadDashboard: headerDate = addDays(dashboardDate, -1)),
+    // because the report reflects the latest *uploaded* data, not today.
+    // Using plain "today" here made the email subject/body show one day
+    // ahead of what the attached snapshot actually says. Reuse the same
+    // addDays(new Date(), -1) so this always agrees with the on-screen title.
+    var reportDate = addDays(new Date(), -1);
+    var dateStr = pad2(reportDate.getDate()) + '/' + pad2(reportDate.getMonth() + 1) + '/' + reportDate.getFullYear();
 
     captureSnapshot('png')
       .then(function (dataUrl) {
