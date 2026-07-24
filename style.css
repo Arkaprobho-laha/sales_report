@@ -410,6 +410,17 @@ body {
   background: rgba(224, 87, 87, 0.06);
 }
 
+.btn-cb-green {
+  background: var(--s1);
+  border-color: rgba(46, 160, 96, 0.4);
+  color: #1a8a4a;
+}
+
+.btn-cb-green:hover {
+  background: rgba(46, 160, 96, 0.06);
+  color: #126b36;
+}
+
 /* ── Mini refresh indicator ── */
 .refresh-indicator {
   display: flex;

@@ -1,0 +1,89 @@
+const nodemailer = require('nodemailer');
+
+module.exports = async function handler(req, res) {
+  // Only POST allowed
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  // ── Env vars (set in Vercel Dashboard → Settings → Environment Variables)
+  const GMAIL_USER = process.env.GMAIL_USER;
+  const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
+  const MAIL_RECIPIENTS = process.env.MAIL_RECIPIENTS; // comma-separated
+
+  if (!GMAIL_USER || !GMAIL_APP_PASSWORD || !MAIL_RECIPIENTS) {
+    console.error('Missing env: GMAIL_USER, GMAIL_APP_PASSWORD, or MAIL_RECIPIENTS');
+    return res.status(500).json({ error: 'Email service not configured.' });
+  }
+
+  // ── Parse body
+  const { imageBase64, subject, dashboardDate } = req.body || {};
+
+  if (!imageBase64) {
+    return res.status(400).json({ error: 'Missing imageBase64 in request body.' });
+  }
+
+  // Strip data URL prefix if present: "data:image/png;base64,..."
+  const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+  const imageBuffer = Buffer.from(base64Data, 'base64');
+
+  // ── Build email
+  const dateStr = dashboardDate || new Date().toLocaleDateString('en-IN');
+  const emailSubject = subject || `DALUCI Sales Dashboard — ${dateStr}`;
+  const recipients = MAIL_RECIPIENTS.split(',').map(e => e.trim()).filter(Boolean);
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: GMAIL_USER,
+      pass: GMAIL_APP_PASSWORD,
+    },
+  });
+
+  const mailOptions = {
+    from: `"DALUCI Dashboard" <${GMAIL_USER}>`,
+    to: recipients.join(', '),
+    subject: emailSubject,
+    html: `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 700px; margin: 0 auto;">
+        <div style="background: #1a2332; color: #ffffff; padding: 20px 28px; border-radius: 10px 10px 0 0;">
+          <h1 style="margin: 0; font-size: 22px; letter-spacing: 2px;">DALUCI</h1>
+          <p style="margin: 4px 0 0; font-size: 13px; color: #a0b4c8;">Sales Dashboard Report · ${dateStr}</p>
+        </div>
+        <div style="background: #f5f0e8; padding: 20px 28px; border-radius: 0 0 10px 10px;">
+          <p style="font-size: 14px; color: #333;">Hi Team,</p>
+          <p style="font-size: 14px; color: #333;">
+            Please find the latest sales dashboard snapshot attached below.
+          </p>
+          <p style="font-size: 11px; color: #888; margin-top: 24px;">
+            This is an automated email from the DALUCI Sales Dashboard.
+          </p>
+        </div>
+      </div>
+    `,
+    attachments: [
+      {
+        filename: `daluci-dashboard-${dateStr.replace(/\//g, '-')}.png`,
+        content: imageBuffer,
+        contentType: 'image/png',
+        cid: 'dashboard-snapshot',
+      },
+    ],
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Email sent:', info.messageId);
+    return res.status(200).json({
+      success: true,
+      messageId: info.messageId,
+      recipients: recipients,
+    });
+  } catch (err) {
+    console.error('Email send error:', err);
+    return res.status(500).json({
+      error: 'Failed to send email.',
+      detail: err.message,
+    });
+  }
+};

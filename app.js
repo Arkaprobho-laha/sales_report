@@ -78,6 +78,7 @@
     els.lastRefreshed = document.getElementById('lastRefreshed');
     els.refreshIndicator = document.getElementById('refreshIndicator');
     els.snapshotBtn = document.getElementById('snapshotBtn');
+    els.emailBtn = document.getElementById('emailBtn');
     els.refreshBtn = document.getElementById('refreshBtn');
     els.changeTokenBtn = document.getElementById('changeTokenBtn');
     els.debugBtn = document.getElementById('debugBtn');
@@ -122,6 +123,7 @@
     els.cancelChangeBtn.addEventListener('click', onCancelChange);
     els.ctmBackdrop.addEventListener('click', onCancelChange);
     els.snapshotBtn.addEventListener('click', takeSnapshot);
+    els.emailBtn.addEventListener('click', emailSnapshot);
     els.debugBtn.addEventListener('click', function () { els.debugDrawer.hidden = false; });
     els.closeDebugBtn.addEventListener('click', function () { els.debugDrawer.hidden = true; });
   }
@@ -874,6 +876,82 @@
         alert('Snapshot failed: ' + (err.message || String(err)));
       })
       .then(restore);  // runs after .then OR .catch — like .finally
+  }
+
+  // =====================================================================
+  // EMAIL SNAPSHOT  (capture → base64 → POST to /api/send-snapshot)
+  // =====================================================================
+
+  function emailSnapshot() {
+    var target = els.snapshotArea;
+    if (!target) { alert('Snapshot area not found.'); return; }
+
+    if (target.querySelector('.skel-row')) {
+      alert('Dashboard is still loading. Please wait a moment.');
+      return;
+    }
+
+    var btn = els.emailBtn;
+    var origHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '📧 Sending…';
+
+    // Expose full scroll content for capture
+    var outers = Array.from(target.querySelectorAll('.tbl-outer'));
+    var savedOverflow = outers.map(function (el) { return el.style.overflow; });
+    outers.forEach(function (el) { el.style.overflow = 'visible'; });
+
+    function restore() {
+      outers.forEach(function (el, i) { el.style.overflow = savedOverflow[i]; });
+      btn.disabled = false;
+      btn.innerHTML = origHTML;
+    }
+
+    // Get today's date string for the email subject
+    var now = new Date();
+    var dateStr = String(now.getDate()).padStart(2, '0') + '/' +
+      String(now.getMonth() + 1).padStart(2, '0') + '/' + now.getFullYear();
+
+    htmlToImage.toPng(target, {
+      pixelRatio: 2,
+      skipFonts: true,
+      filter: function (node) {
+        return !(node.classList && node.classList.contains('inline-edit-input'));
+      }
+    })
+    .then(function (dataUrl) {
+      // POST the base64 image to our serverless endpoint
+      return fetch('/api/send-snapshot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64: dataUrl,
+          dashboardDate: dateStr
+        })
+      });
+    })
+    .then(function (resp) {
+      return resp.json().then(function (data) {
+        if (!resp.ok) throw new Error(data.error || data.detail || 'Server error');
+        return data;
+      });
+    })
+    .then(function (data) {
+      // Show success toast
+      showEmailToast('✓ Dashboard emailed to ' + (data.recipients || []).join(', '));
+    })
+    .catch(function (err) {
+      console.error('Email snapshot error:', err);
+      alert('Email failed: ' + (err.message || String(err)));
+    })
+    .then(restore);
+  }
+
+  function showEmailToast(msg) {
+    var toast = els.authToast; // reuse the auth toast element
+    toast.textContent = msg;
+    toast.classList.add('visible');
+    setTimeout(function () { toast.classList.remove('visible'); }, 4000);
   }
 
 })();
