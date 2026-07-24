@@ -27,10 +27,6 @@
 
   const BRAND_FILTER = 'Daluci';
 
-  // Pagination
-  const TABLE_PAGE_SIZE = 5;   // data rows per page in report tables
-  const DEBUG_PAGE_SIZE = 8;   // entries per page in the debug drawer
-
   function readTotals(data, brandFiltered) {
     data = data || {};
     return {
@@ -53,10 +49,7 @@
 
   const state = {
     token: '',
-    debugLog: [],
-    debugPage: 1,
-    tablePage: {},   // { [tbodyId]: currentPageNumber }
-    lastCtx: null     // most recent renderReport() ctx, used to re-render a table on page change
+    debugLog: []
   };
 
   const els = {};
@@ -111,17 +104,10 @@
     els.adsTableBody = document.getElementById('adsTableBody');
     els.uploadDatesTableBody = document.getElementById('uploadDatesTableBody');
     els.snapshotArea = document.getElementById('snapshotArea');
-    // Table pagers
-    els.channelPager = document.getElementById('channelPager');
-    els.adsPager = document.getElementById('adsPager');
-    els.uploadDatesPager = document.getElementById('uploadDatesPager');
     // Debug
     els.debugDrawer = document.getElementById('debugDrawer');
     els.debugLog = document.getElementById('debugLog');
     els.closeDebugBtn = document.getElementById('closeDebugBtn');
-    els.debugPrevBtn = document.getElementById('debugPrevBtn');
-    els.debugNextBtn = document.getElementById('debugNextBtn');
-    els.debugPageInfo = document.getElementById('debugPageInfo');
   }
 
   // =====================================================================
@@ -140,14 +126,6 @@
     els.emailBtn.addEventListener('click', emailSnapshot);
     els.debugBtn.addEventListener('click', function () { els.debugDrawer.hidden = false; });
     els.closeDebugBtn.addEventListener('click', function () { els.debugDrawer.hidden = true; });
-    els.debugPrevBtn.addEventListener('click', function () {
-      state.debugPage -= 1;
-      renderDebugLog();
-    });
-    els.debugNextBtn.addEventListener('click', function () {
-      state.debugPage += 1;
-      renderDebugLog();
-    });
   }
 
   // =====================================================================
@@ -354,44 +332,18 @@
   AuthError.prototype = Object.create(Error.prototype);
 
   function renderDebugEntry(entry) {
-    // A new call always arrives on the most recent page, so jump there
-    // to keep the drawer feeling "live" while a load is in progress.
-    state.debugPage = totalDebugPages();
-    renderDebugLog();
-  }
-
-  function totalDebugPages() {
-    return Math.max(1, Math.ceil(state.debugLog.length / DEBUG_PAGE_SIZE));
-  }
-
-  function renderDebugLog() {
-    const total = state.debugLog.length;
-    const totalPages = totalDebugPages();
-    if (state.debugPage > totalPages) state.debugPage = totalPages;
-    if (state.debugPage < 1) state.debugPage = 1;
-
-    const start = (state.debugPage - 1) * DEBUG_PAGE_SIZE;
-    const pageEntries = state.debugLog.slice(start, start + DEBUG_PAGE_SIZE);
-
-    els.debugLog.innerHTML = '';
-    pageEntries.forEach(function (entry) {
-      const div = document.createElement('div');
-      div.className = 'debug-entry';
-      const bodyStr = typeof entry.body === 'string'
-        ? entry.body : JSON.stringify(entry.body, null, 2);
-      div.innerHTML =
-        '<div class="debug-entry-title' +
-        (entry.status >= 400 ? ' debug-entry-error' : '') + '">' +
-        escapeHtml(entry.status + '  ' + entry.url) +
-        '  (' + entry.latency + 'ms)</div>' +
-        '<pre>' + escapeHtml((bodyStr || '').slice(0, 4000)) + '</pre>';
-      els.debugLog.appendChild(div);
-    });
-
-    els.debugPageInfo.textContent =
-      'Page ' + state.debugPage + ' of ' + totalPages + ' (' + total + ' calls)';
-    els.debugPrevBtn.disabled = state.debugPage <= 1;
-    els.debugNextBtn.disabled = state.debugPage >= totalPages;
+    const div = document.createElement('div');
+    div.className = 'debug-entry';
+    const bodyStr = typeof entry.body === 'string'
+      ? entry.body : JSON.stringify(entry.body, null, 2);
+    div.innerHTML =
+      '<div class="debug-entry-title' +
+      (entry.status >= 400 ? ' debug-entry-error' : '') + '">' +
+      escapeHtml(entry.status + '  ' + entry.url) +
+      '  (' + entry.latency + 'ms)</div>' +
+      '<pre>' + escapeHtml((bodyStr || '').slice(0, 4000)) + '</pre>';
+    els.debugLog.appendChild(div);
+    els.debugLog.scrollTop = els.debugLog.scrollHeight;
   }
 
   function escapeHtml(s) {
@@ -437,8 +389,6 @@
     hideErrorBanner();
     els.debugLog.innerHTML = '';
     state.debugLog = [];
-    state.debugPage = 1;
-    renderDebugLog();
     els.refreshBtn.disabled = true;
 
     if (isFirstLoad) {
@@ -639,86 +589,13 @@
       var row = td.closest('tr');
       if (row.classList.contains('total-row') || row.classList.contains('share-row')) return;
 
-      // Build a stable storage key from position in this tbody. Paginated
-      // tables stamp each <tr> with the row's absolute (pre-pagination)
-      // index via data-row-index, since its on-page DOM position resets
-      // every page and would otherwise collide with another page's row 0.
-      // Non-paginated tables fall back to DOM position, same as before.
-      var rowIdx = row.hasAttribute('data-row-index')
-        ? parseInt(row.getAttribute('data-row-index'), 10)
-        : Array.from(tbody.rows).indexOf(row);
+      // Build a stable storage key from position in this tbody
+      var rowIdx = Array.from(tbody.rows).indexOf(row);
       var colIdx = Array.from(row.cells).indexOf(td);
       var key = cellKey(tbody.id, rowIdx, colIdx);
 
       makeEditable(td, key);
     });
-  }
-
-  // =====================================================================
-  // TABLE PAGINATION HELPER
-  // =====================================================================
-
-  // dataRows: array of <tr data-row-index="N">...</tr> html strings (one per
-  //           logical record, in full/unpaginated order)
-  // pinnedRowHtml: html for rows that should always show below the current
-  //           page (e.g. a Total row) — excluded from pagination & from
-  //           edit-key indexing via their total-row/share-row class
-  function renderPaginatedTable(tbodyId, dataRows, pinnedRowHtml, pagerEl) {
-    const tbody = els[tbodyId];
-
-    // Snapshot/email capture needs every row on screen at once, not just
-    // the page currently being viewed — see captureSnapshot().
-    if (state.captureAllRows) {
-      setEditableRows(tbody, dataRows.join('') + (pinnedRowHtml || ''));
-      if (pagerEl) { pagerEl.hidden = true; pagerEl.innerHTML = ''; }
-      return;
-    }
-
-    if (!state.tablePage[tbodyId]) state.tablePage[tbodyId] = 1;
-
-    const totalPages = Math.max(1, Math.ceil(dataRows.length / TABLE_PAGE_SIZE));
-    if (state.tablePage[tbodyId] > totalPages) state.tablePage[tbodyId] = totalPages;
-    if (state.tablePage[tbodyId] < 1) state.tablePage[tbodyId] = 1;
-    const page = state.tablePage[tbodyId];
-
-    const start = (page - 1) * TABLE_PAGE_SIZE;
-    const pageRows = dataRows.slice(start, start + TABLE_PAGE_SIZE);
-
-    setEditableRows(tbody, pageRows.join('') + (pinnedRowHtml || ''));
-    renderTablePager(pagerEl, tbodyId, page, totalPages, dataRows.length);
-  }
-
-  function renderTablePager(pagerEl, tbodyId, page, totalPages, totalItems) {
-    if (!pagerEl) return;
-    if (totalPages <= 1) {
-      pagerEl.hidden = true;
-      pagerEl.innerHTML = '';
-      return;
-    }
-    pagerEl.hidden = false;
-    pagerEl.innerHTML =
-      '<button class="pager-btn pager-prev"' + (page <= 1 ? ' disabled' : '') + '>‹ Prev</button>' +
-      '<span class="pager-info">Page ' + page + ' of ' + totalPages + ' (' + totalItems + ' rows)</span>' +
-      '<button class="pager-btn pager-next"' + (page >= totalPages ? ' disabled' : '') + '>Next ›</button>';
-
-    pagerEl.querySelector('.pager-prev').addEventListener('click', function () {
-      state.tablePage[tbodyId] = Math.max(1, page - 1);
-      rerenderTableById(tbodyId);
-    });
-    pagerEl.querySelector('.pager-next').addEventListener('click', function () {
-      state.tablePage[tbodyId] = Math.min(totalPages, page + 1);
-      rerenderTableById(tbodyId);
-    });
-  }
-
-  // Re-runs the render function for a single table (used when its page
-  // number changes) against the last data loaded, without touching the
-  // other tables or re-fetching anything.
-  function rerenderTableById(tbodyId) {
-    if (!state.lastCtx) return;
-    if (tbodyId === 'channelTableBody') renderChannelTable(state.lastCtx);
-    else if (tbodyId === 'adsTableBody') renderAdsTable(state.lastCtx);
-    else if (tbodyId === 'uploadDatesTableBody') renderUploadDatesTable(state.lastCtx);
   }
 
 
@@ -727,8 +604,6 @@
   // =====================================================================
 
   function renderReport(ctx) {
-    state.lastCtx = ctx;   // remembered so a pager click can re-render one table
-
     // Header date = one day PRIOR to the dashboard date
     const headerDate = addDays(ctx.dashboardDate, -1);
     els.reportTitleCell.textContent =
@@ -750,7 +625,7 @@
       totalDaluciOrder += dal.order; totalDaluciGmv += dal.gmv;
     });
 
-    ctx.perPlatform.forEach(function (p, idx) {
+    ctx.perPlatform.forEach(function (p) {
       const all = p.yesterday.all; const daluci = p.yesterday.daluci;
       const contribution = totalDaluciGmv > 0
         ? (daluci.gmv / totalDaluciGmv * 100) : 0;
@@ -763,7 +638,7 @@
       }
 
       rows.push(
-        '<tr data-row-index="' + idx + '">' +
+        '<tr>' +
         '<td>' + escapeHtml(label) + '</td>' +
         '<td>' + fmtInt(all.order) + '</td>' +
         '<td>' + fmtInt(all.gmv) + '</td>' +
@@ -774,7 +649,7 @@
       );
     });
 
-    const totalRowHtml =
+    rows.push(
       '<tr class="total-row">' +
       '<td>Total</td>' +
       '<td>' + fmtInt(totalAllOrder) + '</td>' +
@@ -782,9 +657,10 @@
       '<td>' + fmtInt(totalDaluciOrder) + '</td>' +
       '<td>' + fmtInt(totalDaluciGmv) + '</td>' +
       '<td>100%</td>' +
-      '</tr>';
+      '</tr>'
+    );
 
-    renderPaginatedTable('channelTableBody', rows, totalRowHtml, els.channelPager);
+    setEditableRows(els.channelTableBody, rows.join(''));
   }
 
   function renderRunrateTable(ctx) {
@@ -815,7 +691,6 @@
     const rows = [];
     let totalYAll = 0, totalMAll = 0, totalYDaluci = 0, totalMDaluci = 0;
 
-    let rowIdx = 0;
     ctx.perPlatform.forEach(function (p) {
       // Skip Amazon Direct & DALUCI Website
       if (ADS_EXCLUDED_KEYS.indexOf(p.platform.key) !== -1) return;
@@ -837,7 +712,7 @@
       totalYDaluci += yDaluci; totalMDaluci += mDaluci;
 
       rows.push(
-        '<tr data-row-index="' + rowIdx + '">' +
+        '<tr>' +
         '<td>' + escapeHtml(p.platform.label) + '</td>' +
         '<td>' + fmtAds(yAll) + '</td>' +
         '<td>' + fmtAds(mAll) + '</td>' +
@@ -845,33 +720,33 @@
         '<td>' + fmtAds(mDaluci) + '</td>' +
         '</tr>'
       );
-      rowIdx++;
     });
 
-    const totalRowHtml =
+    rows.push(
       '<tr class="total-row">' +
       '<td>Total</td>' +
       '<td>' + fmtAds(totalYAll) + '</td>' +
       '<td>' + fmtAds(totalMAll) + '</td>' +
       '<td>' + fmtAds(totalYDaluci) + '</td>' +
       '<td>' + fmtAds(totalMDaluci) + '</td>' +
-      '</tr>';
+      '</tr>'
+    );
 
-    renderPaginatedTable('adsTableBody', rows, totalRowHtml, els.adsPager);
+    setEditableRows(els.adsTableBody, rows.join(''));
   }
 
   function renderUploadDatesTable(ctx) {
     const rows = [];
-    PLATFORMS.forEach(function (p, idx) {
+    PLATFORMS.forEach(function (p) {
       const d = ctx.uploadMap[p.key];
       rows.push(
-        '<tr data-row-index="' + idx + '">' +
+        '<tr>' +
         '<td>' + escapeHtml(p.label) + '</td>' +
         '<td>' + (d ? formatDMY(d) : '<span class="na-cell">—</span>') + '</td>' +
         '</tr>'
       );
     });
-    renderPaginatedTable('uploadDatesTableBody', rows, '', els.uploadDatesPager);
+    setEditableRows(els.uploadDatesTableBody, rows.join(''));
   }
 
   // =====================================================================
@@ -948,23 +823,6 @@
       return Promise.reject(new Error('Dashboard is still loading. Please wait a moment.'));
     }
 
-    // Snapshots must capture every row, not just whichever page the user
-    // is currently viewing — temporarily render tables 1–3 unpaginated
-    // and restore the user's page position once capture is done.
-    var savedTablePage = Object.assign({}, state.tablePage);
-    state.captureAllRows = true;
-    rerenderTableById('channelTableBody');
-    rerenderTableById('adsTableBody');
-    rerenderTableById('uploadDatesTableBody');
-
-    function restorePagination() {
-      state.captureAllRows = false;
-      state.tablePage = savedTablePage;
-      rerenderTableById('channelTableBody');
-      rerenderTableById('adsTableBody');
-      rerenderTableById('uploadDatesTableBody');
-    }
-
     // Inject temporary style to force desktop layout on mobile
     var styleEl = document.createElement('style');
     styleEl.innerHTML = 
@@ -1003,7 +861,6 @@
       target.style.minWidth   = savedMinWidth;
       document.body.classList.remove('capture-mode');
       if (styleEl.parentNode) styleEl.parentNode.removeChild(styleEl);
-      restorePagination();
     }
 
     var opts = {
