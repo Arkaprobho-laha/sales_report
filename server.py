@@ -32,6 +32,30 @@ class ProxyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 return
             super().do_GET()
 
+    def do_POST(self):
+        if self.path.startswith('/api/send-snapshot'):
+            # send-snapshot.js is a Node/Vercel serverless function (uses
+            # nodemailer + process.env). It cannot run under this plain
+            # Python dev server. Return a clear JSON error instead of a
+            # bare 501, so the "Email" button surfaces something readable
+            # instead of a JSON-parse crash. Test the real email flow with
+            # `vercel dev` or on a deployed Vercel preview.
+            body = (
+                '{"error": "Email sending only works on Vercel (this local '
+                'Python server can\'t run the Node send-snapshot function). '
+                'Use `vercel dev` or a deployed preview to test emailing."}'
+            ).encode('utf-8')
+            self.send_response(501)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Length', str(len(body)))
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(body)
+        elif self.path.startswith('/api/'):
+            self.proxy_request('POST')
+        else:
+            self.send_error(404, 'Not Found')
+
     def do_OPTIONS(self):
         if self.path.startswith('/api/'):
             self.send_response(200)

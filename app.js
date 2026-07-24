@@ -262,38 +262,6 @@
   }
 
   // =====================================================================
-  // SNAPSHOT  (html2canvas, first 3 tables only via #snapshotArea)
-  // =====================================================================
-
-  function takeSnapshot() {
-    if (!window.html2canvas) {
-      alert('html2canvas not loaded yet — try again in a moment.');
-      return;
-    }
-    // Brief white flash as tactile feedback
-    els.snapshotFlash.classList.add('active');
-    setTimeout(function () { els.snapshotFlash.classList.remove('active'); }, 250);
-
-    window.html2canvas(els.snapshotArea, {
-      backgroundColor: '#070b14',
-      scale: 2,
-      useCORS: true,
-      logging: false
-    }).then(function (canvas) {
-      const link = document.createElement('a');
-      const ts = new Date();
-      const stamp = ts.getFullYear() + '-' +
-        pad2(ts.getMonth() + 1) + '-' + pad2(ts.getDate()) +
-        '_' + pad2(ts.getHours()) + pad2(ts.getMinutes());
-      link.download = 'DALUCI_Dashboard_' + stamp + '.png';
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    }).catch(function (err) {
-      console.error('Snapshot failed:', err);
-    });
-  }
-
-  // =====================================================================
   // API
   // =====================================================================
 
@@ -814,46 +782,58 @@
   // =====================================================================
   // CAPTURE HELPER  (shared by Snapshot button and Email button)
   // =====================================================================
-
-  // Returns a Promise<string> that resolves to a data URL of the snapshot.
-  // Fixes applied here:
-  //   1. backgroundColor fills the cream gaps between dark tables.
-  //   2. Inline background set on target as a belt-and-suspenders measure.
-  //   3. height: target.scrollHeight ensures the full ads table is captured.
-  //   4. 16px padding gives a clean border around the capture.
-  function captureSnapshotDataUrl() {
+  //
+  // Returns a Promise that resolves to a PNG data URL (mode 'png') or a
+  // Blob (mode 'blob'). Fixes applied here:
+  //   1. backgroundColor + inline background fill the gaps between the
+  //      dark tables with the same warm cream as the page body, instead
+  //      of leaving a transparent PNG (which email/photo apps render as
+  //      plain white).
+  //   2. Padding shorthand "top sides bottom" gives breathing room on
+  //      every edge, with extra room below the last table.
+  //   3. .tbl-outer overflow is temporarily set to visible so the full
+  //      table width is captured, not just what's scrolled into view.
+  //   4. height: scrollHeight ensures the full Ads Spend table is
+  //      captured even when it extends past the current viewport.
+  function captureSnapshot(mode) {
     var target = els.snapshotArea;
-
-    // Expand scroll containers so full table width is captured
-    var outers = Array.from(target.querySelectorAll('.tbl-outer'));
-    var savedOF  = outers.map(function (el) { return el.style.overflow; });
-    outers.forEach(function (el) { el.style.overflow = 'visible'; });
-
-    // Set background + padding on the container itself
-    var savedBg  = target.style.background;
-    var savedPad = target.style.padding;
-    target.style.background = '#f0ece4';   // warm cream — matches page
-    target.style.padding    = '16px';
-
-    function restoreStyles() {
-      outers.forEach(function (el, i) { el.style.overflow = savedOF[i]; });
-      target.style.background = savedBg;
-      target.style.padding    = savedPad;
+    if (!target) return Promise.reject(new Error('Snapshot area not found.'));
+    if (target.querySelector('.skel-row')) {
+      return Promise.reject(new Error('Dashboard is still loading. Please wait a moment.'));
     }
 
-    return htmlToImage.toPng(target, {
-      pixelRatio:      2,
-      skipFonts:       true,               // skip Google Fonts fetch (CORS hang)
-      backgroundColor: '#f0ece4',          // cream fill for transparent gaps
-      // Use scrollHeight so the full ads table is always captured,
-      // even when it extends below the current viewport
-      height: target.scrollHeight + 16,
+    var outers = Array.from(target.querySelectorAll('.tbl-outer'));
+    var savedOverflow = outers.map(function (el) { return el.style.overflow; });
+    outers.forEach(function (el) { el.style.overflow = 'visible'; });
+
+    var savedBg = target.style.background;
+    var savedPad = target.style.padding;
+    target.style.background = '#f0ece4';         // warm cream — matches page body
+    target.style.padding = '20px 28px 36px';  // top / left+right / bottom
+
+    function restore() {
+      outers.forEach(function (el, i) { el.style.overflow = savedOverflow[i]; });
+      target.style.background = savedBg;
+      target.style.padding = savedPad;
+    }
+
+    var opts = {
+      pixelRatio: 2,
+      skipFonts: true,       // avoid the Google Fonts CORS fetch hanging the promise
+      backgroundColor: '#f0ece4',  // cream fill for any transparent gaps
+      height: target.scrollHeight + 56,
       filter: function (node) {
         return !(node.classList && node.classList.contains('inline-edit-input'));
       }
-    })
-    .then(function (dataUrl) { restoreStyles(); return dataUrl; })
-    .catch(function (err)    { restoreStyles(); throw err;    });
+    };
+
+    var capture = mode === 'blob'
+      ? htmlToImage.toBlob(target, opts)
+      : htmlToImage.toPng(target, opts);
+
+    return capture
+      .then(function (result) { restore(); return result; })
+      .catch(function (err) { restore(); throw err; });
   }
 
   // =====================================================================
@@ -861,11 +841,6 @@
   // =====================================================================
 
   function takeSnapshot() {
-    if (!els.snapshotArea) { alert('Snapshot area not found.'); return; }
-    if (els.snapshotArea.querySelector('.skel-row')) {
-      alert('Dashboard is still loading. Please wait a moment.'); return;
-    }
-
     var btn = els.snapshotBtn;
     var origHTML = btn.innerHTML;
     btn.disabled = true;
@@ -875,13 +850,7 @@
     els.snapshotFlash.classList.add('active');
     setTimeout(function () { els.snapshotFlash.classList.remove('active'); }, 350);
 
-    // Temporarily expose full scroll containers so full table width is captured
-    var outers = Array.from(target.querySelectorAll('.tbl-outer'));
-    var savedOverflow = outers.map(function (el) { return el.style.overflow; });
-    outers.forEach(function (el) { el.style.overflow = 'visible'; });
-
     function restore() {
-      outers.forEach(function (el, i) { el.style.overflow = savedOverflow[i]; });
       btn.disabled = false;
       btn.innerHTML = origHTML;
     }
@@ -892,16 +861,7 @@
       console.warn('Snapshot timed out — check CORS or network.');
     }, 15000);
 
-    htmlToImage.toBlob(target, {
-      pixelRatio: 2,
-      // KEY FIX: html-to-image fetches Google Fonts to embed them.
-      // That CORS request hangs the Promise forever. skipFonts:true
-      // skips inlining — fonts still render from browser cache.
-      skipFonts: true,
-      filter: function (node) {
-        return !(node.classList && node.classList.contains('inline-edit-input'));
-      }
-    })
+    captureSnapshot('blob')
       .then(function (blob) {
         clearTimeout(timeoutId);
         if (!blob) { throw new Error('html-to-image returned no data.'); }
@@ -929,26 +889,12 @@
   // =====================================================================
 
   function emailSnapshot() {
-    var target = els.snapshotArea;
-    if (!target) { alert('Snapshot area not found.'); return; }
-
-    if (target.querySelector('.skel-row')) {
-      alert('Dashboard is still loading. Please wait a moment.');
-      return;
-    }
-
     var btn = els.emailBtn;
     var origHTML = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '📧 Sending…';
 
-    // Expose full scroll content for capture
-    var outers = Array.from(target.querySelectorAll('.tbl-outer'));
-    var savedOverflow = outers.map(function (el) { return el.style.overflow; });
-    outers.forEach(function (el) { el.style.overflow = 'visible'; });
-
     function restore() {
-      outers.forEach(function (el, i) { el.style.overflow = savedOverflow[i]; });
       btn.disabled = false;
       btn.innerHTML = origHTML;
     }
@@ -958,46 +904,45 @@
     var dateStr = String(now.getDate()).padStart(2, '0') + '/' +
       String(now.getMonth() + 1).padStart(2, '0') + '/' + now.getFullYear();
 
-    htmlToImage.toPng(target, {
-      pixelRatio: 2,
-      skipFonts: true,
-      filter: function (node) {
-        return !(node.classList && node.classList.contains('inline-edit-input'));
-      }
-    })
-    .then(function (dataUrl) {
-      // POST the base64 image to our serverless endpoint
-      return fetch('/api/send-snapshot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageBase64: dataUrl,
-          dashboardDate: dateStr
-        })
-      });
-    })
-    .then(function (resp) {
-      return resp.json().then(function (data) {
-        if (!resp.ok) throw new Error(data.error || data.detail || 'Server error');
-        return data;
-      });
-    })
-    .then(function (data) {
-      // Show success toast
-      showEmailToast('✓ Dashboard emailed to ' + (data.recipients || []).join(', '));
-    })
-    .catch(function (err) {
-      console.error('Email snapshot error:', err);
-      alert('Email failed: ' + (err.message || String(err)));
-    })
-    .then(restore);
+    captureSnapshot('png')
+      .then(function (dataUrl) {
+        // POST the base64 image to our serverless endpoint
+        return fetch('/api/send-snapshot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageBase64: dataUrl,
+            dashboardDate: dateStr
+          })
+        });
+      })
+      .then(function (resp) {
+        return resp.json()
+          .catch(function () {
+            // Happens if something upstream (e.g. a misrouted rewrite) returns HTML/plain text
+            throw new Error('Server returned an unexpected response (status ' + resp.status + ').');
+          })
+          .then(function (data) {
+            if (!resp.ok) throw new Error(data.error || data.detail || 'Server error');
+            return data;
+          });
+      })
+      .then(function (data) {
+        // Show success toast
+        showEmailToast('✓ Dashboard emailed to ' + (data.recipients || []).join(', '));
+      })
+      .catch(function (err) {
+        console.error('Email snapshot error:', err);
+        alert('Email failed: ' + (err.message || String(err)));
+      })
+      .then(restore);
   }
 
   function showEmailToast(msg) {
     var toast = els.authToast; // reuse the auth toast element
     toast.textContent = msg;
-    toast.classList.add('visible');
-    setTimeout(function () { toast.classList.remove('visible'); }, 4000);
+    toast.classList.add('show');
+    setTimeout(function () { toast.classList.remove('show'); }, 4000);
   }
 
 })();

@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/api/:match*",
-      "destination": "https://daluci.digital.dhineu.com/bff/:match*"
+      "source": "/api/v1/:match*",
+      "destination": "https://daluci.digital.dhineu.com/bff/v1/:match*"
     }
   ]
 }

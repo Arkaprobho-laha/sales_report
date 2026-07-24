@@ -732,61 +732,61 @@ body {
 /* ──────────────────────────────────────────
    TABLE 1 — Channel-wise Sales  (Navy Blue)
    ────────────────────────────────────────── */
-#channelTable .title-row th   { background: #05111e; }
-#channelTable .section-row th { background: #091828; }
-#channelTable .group-row   th { background: #0d2038; }
-#channelTable .col-row     th { background: #112848; border-bottom-color: rgba(77,143,255,0.5); }
+#channelTable .title-row th   { background: #0d2440; }
+#channelTable .section-row th { background: #123152; }
+#channelTable .group-row   th { background: #173962; }
+#channelTable .col-row     th { background: #1c4272; border-bottom-color: rgba(120,170,255,0.5); }
 
-#channelTableBody tr:nth-child(odd)  td { background: #132238; color: #e8eef8; }
-#channelTableBody tr:nth-child(even) td { background: #1a2e4a; color: #e8eef8; }
-#channelTableBody tr:hover           td { background: #1e3a5e !important; color: #ffffff; }
+#channelTableBody tr:nth-child(odd)  td { background: #1e3a5e; color: #eef3fb; }
+#channelTableBody tr:nth-child(even) td { background: #274a76; color: #eef3fb; }
+#channelTableBody tr:hover           td { background: #2f5890 !important; color: #ffffff; }
 #channelTableBody tr.total-row       td {
-  background: #1c3a60;
-  color: #7db8ff;
-  border-top: 2px solid rgba(77,143,255,0.5);
+  background: #2a4a78;
+  color: #9cccff;
+  border-top: 2px solid rgba(120,170,255,0.5);
 }
 
 /* ──────────────────────────────────────────
    TABLE 2 — Projected Runrate  (Forest Green)
    ────────────────────────────────────────── */
-#runrateTable .section-row th { background: #061410; }
-#runrateTable .col-row     th { background: #0a1e18; border-bottom-color: rgba(64,192,128,0.5); }
+#runrateTable .section-row th { background: #0c2a20; }
+#runrateTable .col-row     th { background: #123828; border-bottom-color: rgba(96,208,152,0.5); }
 
-#runrateTableBody tr:nth-child(odd)  td { background: #102818; color: #e0f5ec; }
-#runrateTableBody tr:nth-child(even) td { background: #163420; color: #e0f5ec; }
-#runrateTableBody tr:hover           td { background: #1e4230 !important; color: #ffffff; }
+#runrateTableBody tr:nth-child(odd)  td { background: #1a4028; color: #e8faf0; }
+#runrateTableBody tr:nth-child(even) td { background: #204c30; color: #e8faf0; }
+#runrateTableBody tr:hover           td { background: #2a5c3c !important; color: #ffffff; }
 #runrateTableBody tr.total-row       td,
 #runrateTableBody tr.share-row       td {
-  background: #1c3c2c;
-  color: #64e0a0;
-  border-top: 2px solid rgba(64,192,128,0.5);
+  background: #2c5038;
+  color: #7ce8b0;
+  border-top: 2px solid rgba(96,208,152,0.5);
 }
 
 /* ──────────────────────────────────────────
    TABLE 3 — Ads Spend  (Mahogany / Amber)
    ────────────────────────────────────────── */
-#adsTable .section-row th { background: #150a02; }
-#adsTable .group-row   th { background: #1c1005; }
-#adsTable .col-row     th { background: #241408; border-bottom-color: rgba(212,144,60,0.5); }
+#adsTable .section-row th { background: #2a1608; }
+#adsTable .group-row   th { background: #34200c; }
+#adsTable .col-row     th { background: #402a12; border-bottom-color: rgba(228,166,90,0.55); }
 
-#adsTableBody tr:nth-child(odd)  td { background: #2a1a08; color: #f8ede0; }
-#adsTableBody tr:nth-child(even) td { background: #341f0c; color: #f8ede0; }
-#adsTableBody tr:hover           td { background: #422810 !important; color: #ffffff; }
+#adsTableBody tr:nth-child(odd)  td { background: #46301a; color: #fbf1e6; }
+#adsTableBody tr:nth-child(even) td { background: #543c22; color: #fbf1e6; }
+#adsTableBody tr:hover           td { background: #644a2a !important; color: #ffffff; }
 #adsTableBody tr.total-row       td {
-  background: #3c2410;
-  color: #e89848;
-  border-top: 2px solid rgba(212,144,60,0.5);
+  background: #5c4222;
+  color: #f0b06c;
+  border-top: 2px solid rgba(228,166,90,0.55);
 }
 
 /* ──────────────────────────────────────────
    TABLE 4 — Upload Dates  (Deep Purple)
    ────────────────────────────────────────── */
-#uploadDatesTable .section-row th { background: #0e0620; }
-#uploadDatesTable .col-row     th { background: #160a2e; border-bottom-color: rgba(144,96,224,0.5); }
+#uploadDatesTable .section-row th { background: #1c1040; }
+#uploadDatesTable .col-row     th { background: #261858; border-bottom-color: rgba(176,136,240,0.55); }
 
-#uploadDatesTableBody tr:nth-child(odd)  td { background: #1c1038; color: #efe8ff; }
-#uploadDatesTableBody tr:nth-child(even) td { background: #241448; color: #efe8ff; }
-#uploadDatesTableBody tr:hover           td { background: #2e1a5c !important; color: #ffffff; }
+#uploadDatesTableBody tr:nth-child(odd)  td { background: #2e1c60; color: #f4efff; }
+#uploadDatesTableBody tr:nth-child(even) td { background: #382470; color: #f4efff; }
+#uploadDatesTableBody tr:hover           td { background: #442c88 !important; color: #ffffff; }
 
 /* ── N/A cell ── */
 .na-cell { color: rgba(255,255,255,0.3); font-style: italic; }
