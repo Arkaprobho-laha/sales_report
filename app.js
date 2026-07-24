@@ -418,7 +418,7 @@
 
         // ── LAZY LOAD: show shell + Table 4 + skeletons for Tables 1–3 NOW ──
         els.reportTitleCell.textContent =
-          'DALUCI  |  SALES DASHBOARD (' + formatDMY(headerDate) + ')';
+          'DALUCI  |  SALES AND ADS REPORT (' + formatDMY(headerDate) + ')';
 
         // Table 4 renders immediately (upload dates are already in hand)
         renderUploadDatesTable({ uploadMap: uploadMap, dashboardDate: dashboardDate });
@@ -607,7 +607,7 @@
     // Header date = one day PRIOR to the dashboard date
     const headerDate = addDays(ctx.dashboardDate, -1);
     els.reportTitleCell.textContent =
-      'DALUCI  |  SALES DASHBOARD (' + formatDMY(headerDate) + ')';
+      'DALUCI  |  SALES AND ADS REPORT (' + formatDMY(headerDate) + ')';
 
     renderChannelTable(ctx);
     renderRunrateTable(ctx);

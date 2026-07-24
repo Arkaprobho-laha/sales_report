@@ -40,7 +40,7 @@ module.exports = async function handler(req, res) {
     month: '2-digit',
     year: 'numeric'
   });
-  const emailSubject = subject || `DALUCI Sales Dashboard — ${dateStr}`;
+  const emailSubject = subject || `DALUCI Sales and Ads Report — ${dateStr}`;
   const recipients = MAIL_RECIPIENTS.split(',').map(e => e.trim()).filter(Boolean);
 
   const transporter = nodemailer.createTransport({
@@ -59,12 +59,12 @@ module.exports = async function handler(req, res) {
       <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 700px; margin: 0 auto;">
         <div style="background: #1a2332; color: #ffffff; padding: 20px 28px; border-radius: 10px 10px 0 0;">
           <h1 style="margin: 0; font-size: 22px; letter-spacing: 2px;">DALUCI</h1>
-          <p style="margin: 4px 0 0; font-size: 13px; color: #a0b4c8;">Sales Dashboard Report · ${dateStr}</p>
+          <p style="margin: 4px 0 0; font-size: 13px; color: #a0b4c8;">Sales and Ads Report · ${dateStr}</p>
         </div>
         <div style="background: #f5f0e8; padding: 24px 28px; border-radius: 0 0 10px 10px;">
           <p style="font-size: 14px; color: #333; margin: 0 0 12px;">Hi Team,</p>
           <p style="font-size: 14px; color: #333; line-height: 1.6; margin: 0 0 12px;">
-            Attached is the latest DALUCI sales dashboard — channel-wise performance, monthly
+            Attached is the latest DALUCI sales and ads report — channel-wise performance, monthly
             run-rate, and ad spend across all platforms, current as of ${dateStr}.
           </p>
           <p style="font-size: 14px; color: #333; line-height: 1.6; margin: 0 0 12px;">
@@ -72,7 +72,7 @@ module.exports = async function handler(req, res) {
           </p>
           <p style="font-size: 14px; color: #333; margin: 20px 0 0;">Best,<br/>DALUCI Dashboard</p>
           <p style="font-size: 11px; color: #888; margin-top: 22px; border-top: 1px solid #e0d8c8; padding-top: 12px;">
-            This is an automated email from the DALUCI Sales Dashboard.
+            This is an automated email from the DALUCI Sales and Ads Report.
           </p>
         </div>
       </div>
