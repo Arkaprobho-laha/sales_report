@@ -165,33 +165,15 @@
     });
   }
 
-  // ── Token-only clear: NEVER wipes cell overrides (daluci_edit_*) ───────
-  // Cell edits use separate keys and must survive token changes.
-  function clearTokenOnly() {
-    window.localStorage.removeItem('daluci_dash_token');
-    // ⚠️  Do NOT call localStorage.clear() — that would destroy cell edits.
-  }
-
   function tryResumeSession() {
-    const localSaved = window.localStorage.getItem('daluci_dash_token');
-
     fetchGlobalToken().then(function (globalToken) {
       if (globalToken) {
-        // Shared store wins — keeps every device in sync with whichever
-        // token was most recently pasted, on any device.
+        // Use only the shared global token
         state.token = globalToken;
-        window.localStorage.setItem('daluci_dash_token', globalToken);
-        enterConnectedState();
-        loadDashboard(true);
-      } else if (localSaved) {
-        // Shared store empty/unreachable — fall back to this device's
-        // own saved token, and seed the shared store for next time.
-        state.token = localSaved;
-        pushGlobalToken(localSaved);
         enterConnectedState();
         loadDashboard(true);
       }
-      // else: nothing anywhere — authForm is already visible (default state)
+      // else: nothing in global store — authForm is already visible
     });
   }
 
@@ -202,8 +184,7 @@
       return;
     }
     state.token = normalizeToken(raw);
-    window.localStorage.setItem('daluci_dash_token', state.token);
-    pushGlobalToken(state.token);   // share with every other device
+    pushGlobalToken(state.token);   // save globally
     hideLoginError();
     enterConnectedState();
     loadDashboard(true);
@@ -211,8 +192,7 @@
 
   function onDisconnect() {
     state.token = '';
-    clearTokenOnly();          // only local session cleared — other
-                                // devices stay connected until real expiry
+    clearGlobalToken();        // clear global session so everyone is disconnected
     els.reportRoot.hidden = true;
     els.tokenInput.value = '';
     enterDisconnectedState();
@@ -237,8 +217,7 @@
       return;
     }
     state.token = normalizeToken(raw);
-    window.localStorage.setItem('daluci_dash_token', state.token);
-    pushGlobalToken(state.token);   // share with every other device
+    pushGlobalToken(state.token);   // update globally
     els.newTokenError.hidden = true;
     els.changeTokenModal.hidden = true;
     updateTokenPreview();
@@ -248,10 +227,8 @@
   // Called when the API returns 401/403 — clears saved token and goes back
   // to the form so the user can paste a fresh one. This is a REAL expiry,
   // so it clears the shared store too — every device should re-auth.
-  // Cell edit overrides (daluci_edit_*) are intentionally preserved.
   function handleAuthFailure(msg) {
     state.token = '';
-    clearTokenOnly();          // only token removed — cell edits stay safe
     clearGlobalToken();        // real expiry — every device needs a new token
     enterDisconnectedState();
     showLoginError(msg || 'Session expired or token rejected. Please paste a new token.');
@@ -433,15 +410,13 @@
           uploadMap[row.platform] = parseAPIDate(row.lastUploadDate);
         });
 
-        let dashboardDate = null;
-        PLATFORMS.forEach(function (p) {
-          const d = uploadMap[p.key];
-          if (d && (!dashboardDate || d > dashboardDate)) dashboardDate = d;
-        });
-        if (!dashboardDate) dashboardDate = new Date();
+        const dashboardDate = new Date();
+        const headerDate = addDays(dashboardDate, -1);
+        
+        // Daluci Website data is real-time; force it to use the dashboard header date
+        uploadMap['Daluci_Website'] = headerDate;
 
         // ── LAZY LOAD: show shell + Table 4 + skeletons for Tables 1–3 NOW ──
-        const headerDate = addDays(dashboardDate, -1);
         els.reportTitleCell.textContent =
           'DALUCI  |  SALES DASHBOARD (' + formatDMY(headerDate) + ')';
 
@@ -656,11 +631,10 @@
         ? (daluci.gmv / totalDaluciGmv * 100) : 0;
 
       let label = p.platform.label;
-      const isStale = p.lastUpload &&
-        !sameDay(p.lastUpload, addDays(ctx.dashboardDate, -1)) &&
-        !sameDay(p.lastUpload, ctx.dashboardDate);
+      const headerDate = addDays(ctx.dashboardDate, -1);
+      const isStale = p.lastUpload && !sameDay(p.lastUpload, headerDate);
       if (p.lastUpload && isStale) {
-        label += ' (' + formatDMY(p.lastUpload) + ')';
+        label += ' - (' + formatDMY(p.lastUpload) + ')';
       }
 
       rows.push(
@@ -849,26 +823,52 @@
       return Promise.reject(new Error('Dashboard is still loading. Please wait a moment.'));
     }
 
+    // Inject temporary style to force desktop layout on mobile
+    var styleEl = document.createElement('style');
+    styleEl.innerHTML = 
+      '.capture-mode .snapshot-area { gap: 28px !important; }' +
+      '.capture-mode .tbl-outer--narrow { max-width: 460px !important; }' +
+      '.capture-mode .tbl-outer--medium { max-width: 640px !important; }' +
+      '.capture-mode .mis-table { font-size: 13px !important; min-width: auto !important; }' +
+      '.capture-mode .mis-table th, .capture-mode .mis-table td { padding: 9px 14px !important; }' +
+      '.capture-mode .mis-table .title-row th { font-size: 14px !important; padding: 14px 16px !important; }' +
+      '.capture-mode .mis-table .section-row th { font-size: 11px !important; padding: 10px 14px !important; }' +
+      '.capture-mode .mis-table .group-row th { font-size: 11px !important; }' +
+      '.capture-mode .mis-table .col-row th { font-size: 10.5px !important; }';
+    document.head.appendChild(styleEl);
+    document.body.classList.add('capture-mode');
+
     var outers = Array.from(target.querySelectorAll('.tbl-outer'));
     var savedOverflow = outers.map(function (el) { return el.style.overflow; });
     outers.forEach(function (el) { el.style.overflow = 'visible'; });
 
     var savedBg  = target.style.background;
     var savedPad = target.style.padding;
+    var savedWidth = target.style.width;
+    var savedMinWidth = target.style.minWidth;
+    
     target.style.background = '#f0ece4';         // warm cream — matches page body
     target.style.padding    = '20px 28px 36px';  // top / left+right / bottom
+    // Force a desktop-like width so mobile snapshots aren't squished
+    target.style.width      = '1024px';
+    target.style.minWidth   = '1024px';
 
     function restore() {
       outers.forEach(function (el, i) { el.style.overflow = savedOverflow[i]; });
       target.style.background = savedBg;
       target.style.padding    = savedPad;
+      target.style.width      = savedWidth;
+      target.style.minWidth   = savedMinWidth;
+      document.body.classList.remove('capture-mode');
+      if (styleEl.parentNode) styleEl.parentNode.removeChild(styleEl);
     }
 
     var opts = {
       pixelRatio:      2,
       skipFonts:       true,       // avoid the Google Fonts CORS fetch hanging the promise
       backgroundColor: '#f0ece4',  // cream fill for any transparent gaps
-      height: target.scrollHeight + 56,
+      width:           1024,
+      height:          target.scrollHeight + 56,
       filter: function (node) {
         return !(node.classList && node.classList.contains('inline-edit-input'));
       }
