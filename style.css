@@ -879,6 +879,60 @@ body {
   color: var(--danger);
 }
 
+.debug-drawer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--tbl-group);
+}
+
+.debug-drawer-footer .pager-info {
+  color: var(--tt3);
+}
+
+/* ============================================================
+   TABLE PAGINATION
+   ============================================================ */
+.tbl-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 6px;
+  font-size: 11.5px;
+}
+
+.pager-btn {
+  padding: 4px 11px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid var(--border-lit);
+  background: var(--s1);
+  color: var(--t2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.pager-btn:hover:not(:disabled) {
+  background: var(--s2);
+  color: var(--t1);
+}
+
+.pager-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pager-info {
+  font-size: 11.5px;
+  color: var(--t3);
+  white-space: nowrap;
+}
+
 /* ============================================================
    SKELETON SHIMMER  (lazy-loading placeholder rows)
    ============================================================ */

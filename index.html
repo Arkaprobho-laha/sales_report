@@ -135,6 +135,7 @@
               </thead>
               <tbody id="channelTableBody"></tbody>
             </table>
+            <div id="channelPager" class="tbl-pager" hidden></div>
           </div>
 
           <!-- Table 2: Monthly Runrate -->
@@ -176,6 +177,7 @@
               </thead>
               <tbody id="adsTableBody"></tbody>
             </table>
+            <div id="adsPager" class="tbl-pager" hidden></div>
           </div>
 
         </div><!-- /snapshotArea -->
@@ -194,6 +196,7 @@
             </thead>
             <tbody id="uploadDatesTableBody"></tbody>
           </table>
+          <div id="uploadDatesPager" class="tbl-pager" hidden></div>
         </div>
 
         <p class="edit-hint">💡 Double-click any data cell to edit its value inline.</p>
@@ -210,6 +213,11 @@
         <button id="closeDebugBtn" class="btn-cb">Close</button>
       </div>
       <div id="debugLog" class="debug-log"></div>
+      <div class="debug-drawer-footer">
+        <button id="debugPrevBtn" class="btn-cb" disabled>‹ Prev</button>
+        <span id="debugPageInfo" class="pager-info">Page 1 of 1 (0 calls)</span>
+        <button id="debugNextBtn" class="btn-cb" disabled>Next ›</button>
+      </div>
     </div>
 
   </div><!-- /app-shell -->
