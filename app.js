@@ -136,6 +136,35 @@
   // triggers handleAuthFailure() which clears the token and asks again.
   // =====================================================================
 
+  // ── Global token store (server-side, shared across every device) ──────
+  // Falls back silently to local-only behavior if the store is
+  // unreachable or not configured — never blocks the UI.
+  function fetchGlobalToken() {
+    return fetch('/api/token')
+      .then(function (r) { return r.json(); })
+      .then(function (data) { return data.token || null; })
+      .catch(function (err) {
+        console.warn('Could not reach shared token store:', err);
+        return null;
+      });
+  }
+
+  function pushGlobalToken(token) {
+    fetch('/api/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: token })
+    }).catch(function (err) {
+      console.warn('Could not save token to shared store:', err);
+    });
+  }
+
+  function clearGlobalToken() {
+    fetch('/api/token', { method: 'DELETE' }).catch(function (err) {
+      console.warn('Could not clear shared token store:', err);
+    });
+  }
+
   // ── Token-only clear: NEVER wipes cell overrides (daluci_edit_*) ───────
   // Cell edits use separate keys and must survive token changes.
   function clearTokenOnly() {
@@ -144,13 +173,26 @@
   }
 
   function tryResumeSession() {
-    const saved = window.localStorage.getItem('daluci_dash_token');
-    if (saved) {
-      state.token = saved;
-      enterConnectedState();
-      loadDashboard(true); // auto-connect silently
-    }
-    // If nothing saved: authForm is already visible (default HTML state)
+    const localSaved = window.localStorage.getItem('daluci_dash_token');
+
+    fetchGlobalToken().then(function (globalToken) {
+      if (globalToken) {
+        // Shared store wins — keeps every device in sync with whichever
+        // token was most recently pasted, on any device.
+        state.token = globalToken;
+        window.localStorage.setItem('daluci_dash_token', globalToken);
+        enterConnectedState();
+        loadDashboard(true);
+      } else if (localSaved) {
+        // Shared store empty/unreachable — fall back to this device's
+        // own saved token, and seed the shared store for next time.
+        state.token = localSaved;
+        pushGlobalToken(localSaved);
+        enterConnectedState();
+        loadDashboard(true);
+      }
+      // else: nothing anywhere — authForm is already visible (default state)
+    });
   }
 
   function onConnectClick() {
@@ -161,6 +203,7 @@
     }
     state.token = normalizeToken(raw);
     window.localStorage.setItem('daluci_dash_token', state.token);
+    pushGlobalToken(state.token);   // share with every other device
     hideLoginError();
     enterConnectedState();
     loadDashboard(true);
@@ -168,7 +211,8 @@
 
   function onDisconnect() {
     state.token = '';
-    clearTokenOnly();          // only token removed — cell edits stay safe
+    clearTokenOnly();          // only local session cleared — other
+                                // devices stay connected until real expiry
     els.reportRoot.hidden = true;
     els.tokenInput.value = '';
     enterDisconnectedState();
@@ -194,6 +238,7 @@
     }
     state.token = normalizeToken(raw);
     window.localStorage.setItem('daluci_dash_token', state.token);
+    pushGlobalToken(state.token);   // share with every other device
     els.newTokenError.hidden = true;
     els.changeTokenModal.hidden = true;
     updateTokenPreview();
@@ -201,11 +246,13 @@
   }
 
   // Called when the API returns 401/403 — clears saved token and goes back
-  // to the form so the user can paste a fresh one.
+  // to the form so the user can paste a fresh one. This is a REAL expiry,
+  // so it clears the shared store too — every device should re-auth.
   // Cell edit overrides (daluci_edit_*) are intentionally preserved.
   function handleAuthFailure(msg) {
     state.token = '';
     clearTokenOnly();          // only token removed — cell edits stay safe
+    clearGlobalToken();        // real expiry — every device needs a new token
     enterDisconnectedState();
     showLoginError(msg || 'Session expired or token rejected. Please paste a new token.');
   }
