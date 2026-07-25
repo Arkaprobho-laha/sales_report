@@ -731,52 +731,52 @@ body {
 }
 
 /* ──────────────────────────────────────────
-   TABLE 1 — Channel-wise Sales  (Warm Beige/Peach)
+   TABLE 1 — Channel-wise Sales  (Blue)
    ────────────────────────────────────────── */
-#channelTable .title-row th   { background: #ffdfba; }
-#channelTable .section-row th { background: #ffe4c4; }
-#channelTable .group-row   th { background: #ffebd2; }
-#channelTable .col-row     th { background: #fff0df; border-bottom-color: rgba(0,0,0,0.15); }
+#channelTable .title-row th   { background: #1a3ab3; color: #ffffff; }
+#channelTable .section-row th { background: #2E5CFF; color: #ffffff; }
+#channelTable .group-row   th { background: #eef2ff; color: #111111; }
+#channelTable .col-row     th { background: #e0e8ff; border-bottom-color: rgba(46,92,255,0.15); color: #111111; }
 
-#channelTableBody tr:nth-child(odd)  td { background: #fff7ed; color: #111111; }
-#channelTableBody tr:nth-child(even) td { background: #fff2e0; color: #111111; }
-#channelTableBody tr:hover           td { background: #ffe6c7 !important; color: #000000; }
+#channelTableBody tr:nth-child(odd)  td { background: #f5f8ff; color: #111111; }
+#channelTableBody tr:nth-child(even) td { background: #fafbff; color: #111111; }
+#channelTableBody tr:hover           td { background: #d6e0ff !important; color: #000000; }
 #channelTableBody tr.total-row       td {
-  background: #ffcc99;
-  color: #331a00;
-  border-top: 2px solid rgba(0,0,0,0.2);
+  background: #adc2ff;
+  color: #001766;
+  border-top: 2px solid rgba(46,92,255,0.3);
 }
 
 /* ──────────────────────────────────────────
-   TABLE 2 — Projected Runrate  (Soft Yellow/Cream)
+   TABLE 2 — Projected Runrate  (Green)
    ────────────────────────────────────────── */
-#runrateTable .section-row th { background: #fff9c4; }
-#runrateTable .col-row     th { background: #fffbcc; border-bottom-color: rgba(0,0,0,0.15); }
+#runrateTable .section-row th { background: #1E8449; color: #ffffff; }
+#runrateTable .col-row     th { background: #d1eadb; border-bottom-color: rgba(30,132,73,0.15); color: #111111; }
 
-#runrateTableBody tr:nth-child(odd)  td { background: #fffeed; color: #111111; }
-#runrateTableBody tr:nth-child(even) td { background: #fffdd0; color: #111111; }
-#runrateTableBody tr:hover           td { background: #fff59d !important; color: #000000; }
+#runrateTableBody tr:nth-child(odd)  td { background: #f0f7f3; color: #111111; }
+#runrateTableBody tr:nth-child(even) td { background: #f7fbf8; color: #111111; }
+#runrateTableBody tr:hover           td { background: #dcf0e3 !important; color: #000000; }
 #runrateTableBody tr.total-row       td,
 #runrateTableBody tr.share-row       td {
-  background: #ffee58;
-  color: #333300;
-  border-top: 2px solid rgba(0,0,0,0.2);
+  background: #9ed5b3;
+  color: #0c351d;
+  border-top: 2px solid rgba(30,132,73,0.3);
 }
 
 /* ──────────────────────────────────────────
-   TABLE 3 — Ads Spend  (Light Rose/Blush)
+   TABLE 3 — Ads Spend  (Orange/Brown)
    ────────────────────────────────────────── */
-#adsTable .section-row th { background: #ffcdd2; }
-#adsTable .group-row   th { background: #ffebee; }
-#adsTable .col-row     th { background: #fff0f2; border-bottom-color: rgba(0,0,0,0.15); }
+#adsTable .section-row th { background: #B9770E; color: #ffffff; }
+#adsTable .group-row   th { background: #fcf7ef; color: #111111; }
+#adsTable .col-row     th { background: #f9efde; border-bottom-color: rgba(185,119,14,0.15); color: #111111; }
 
-#adsTableBody tr:nth-child(odd)  td { background: #fffafa; color: #111111; }
-#adsTableBody tr:nth-child(even) td { background: #fff5f5; color: #111111; }
-#adsTableBody tr:hover           td { background: #ffcdd2 !important; color: #000000; }
+#adsTableBody tr:nth-child(odd)  td { background: #fdfaf4; color: #111111; }
+#adsTableBody tr:nth-child(even) td { background: #fefdfa; color: #111111; }
+#adsTableBody tr:hover           td { background: #f4e3c5 !important; color: #000000; }
 #adsTableBody tr.total-row       td {
-  background: #ef9a9a;
-  color: #4a0000;
-  border-top: 2px solid rgba(0,0,0,0.2);
+  background: #e8ca94;
+  color: #4a2f05;
+  border-top: 2px solid rgba(185,119,14,0.3);
 }
 
 /* ──────────────────────────────────────────
