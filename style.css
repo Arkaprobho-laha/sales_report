@@ -255,7 +255,7 @@ body {
   flex-wrap: wrap;
   gap: 10px;
   padding: 10px 28px;
-  max-width: 1200px;
+  max-width: 1600px;
   margin: 0 auto;
 }
 
@@ -667,7 +667,7 @@ body {
   width: 100%;         /* fills its .tbl-outer */
   min-width: 320px;    /* won't shrink below this on mobile */
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 14px;
   border-radius: 10px;
   overflow: hidden;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.12);
@@ -679,44 +679,45 @@ body {
   padding: 9px 14px;
   text-align: center;
   vertical-align: middle;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  border-right: 1px solid rgba(255, 255, 255, 0.18);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  border-right: 1px solid rgba(0, 0, 0, 0.18);
+  color: #111111;
 }
 
 /* ── Shared header styles ── */
 .mis-table .title-row th {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
   letter-spacing: 0.08em;
   padding: 14px 16px;
   text-align: center;
-  color: #ffffff;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: #111111;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 }
 .mis-table .section-row th {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   padding: 10px 14px;
   text-align: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.75);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  color: rgba(0, 0, 0, 0.85);
 }
 .mis-table .group-row th {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.06em;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.55);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.75);
 }
 .mis-table .col-row th {
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.70);
-  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  color: rgba(0, 0, 0, 0.80);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.15);
 }
 
 /* ── Shared total / share row ── */
@@ -725,96 +726,96 @@ body {
   font-weight: 700;
 }
 .mis-table tbody tr.share-row td {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
 }
 
 /* ──────────────────────────────────────────
-   TABLE 1 — Channel-wise Sales  (Navy Blue)
+   TABLE 1 — Channel-wise Sales  (Warm Beige/Peach)
    ────────────────────────────────────────── */
-#channelTable .title-row th   { background: #0d2440; }
-#channelTable .section-row th { background: #123152; }
-#channelTable .group-row   th { background: #173962; }
-#channelTable .col-row     th { background: #1c4272; border-bottom-color: rgba(120,170,255,0.5); }
+#channelTable .title-row th   { background: #ffdfba; }
+#channelTable .section-row th { background: #ffe4c4; }
+#channelTable .group-row   th { background: #ffebd2; }
+#channelTable .col-row     th { background: #fff0df; border-bottom-color: rgba(0,0,0,0.15); }
 
-#channelTableBody tr:nth-child(odd)  td { background: #1e3a5e; color: #eef3fb; }
-#channelTableBody tr:nth-child(even) td { background: #274a76; color: #eef3fb; }
-#channelTableBody tr:hover           td { background: #2f5890 !important; color: #ffffff; }
+#channelTableBody tr:nth-child(odd)  td { background: #fff7ed; color: #111111; }
+#channelTableBody tr:nth-child(even) td { background: #fff2e0; color: #111111; }
+#channelTableBody tr:hover           td { background: #ffe6c7 !important; color: #000000; }
 #channelTableBody tr.total-row       td {
-  background: #2a4a78;
-  color: #9cccff;
-  border-top: 2px solid rgba(120,170,255,0.5);
+  background: #ffcc99;
+  color: #331a00;
+  border-top: 2px solid rgba(0,0,0,0.2);
 }
 
 /* ──────────────────────────────────────────
-   TABLE 2 — Projected Runrate  (Forest Green)
+   TABLE 2 — Projected Runrate  (Soft Yellow/Cream)
    ────────────────────────────────────────── */
-#runrateTable .section-row th { background: #0c2a20; }
-#runrateTable .col-row     th { background: #123828; border-bottom-color: rgba(96,208,152,0.5); }
+#runrateTable .section-row th { background: #fff9c4; }
+#runrateTable .col-row     th { background: #fffbcc; border-bottom-color: rgba(0,0,0,0.15); }
 
-#runrateTableBody tr:nth-child(odd)  td { background: #1a4028; color: #e8faf0; }
-#runrateTableBody tr:nth-child(even) td { background: #204c30; color: #e8faf0; }
-#runrateTableBody tr:hover           td { background: #2a5c3c !important; color: #ffffff; }
+#runrateTableBody tr:nth-child(odd)  td { background: #fffeed; color: #111111; }
+#runrateTableBody tr:nth-child(even) td { background: #fffdd0; color: #111111; }
+#runrateTableBody tr:hover           td { background: #fff59d !important; color: #000000; }
 #runrateTableBody tr.total-row       td,
 #runrateTableBody tr.share-row       td {
-  background: #2c5038;
-  color: #7ce8b0;
-  border-top: 2px solid rgba(96,208,152,0.5);
+  background: #ffee58;
+  color: #333300;
+  border-top: 2px solid rgba(0,0,0,0.2);
 }
 
 /* ──────────────────────────────────────────
-   TABLE 3 — Ads Spend  (Mahogany / Amber)
+   TABLE 3 — Ads Spend  (Light Rose/Blush)
    ────────────────────────────────────────── */
-#adsTable .section-row th { background: #2a1608; }
-#adsTable .group-row   th { background: #34200c; }
-#adsTable .col-row     th { background: #402a12; border-bottom-color: rgba(228,166,90,0.55); }
+#adsTable .section-row th { background: #ffcdd2; }
+#adsTable .group-row   th { background: #ffebee; }
+#adsTable .col-row     th { background: #fff0f2; border-bottom-color: rgba(0,0,0,0.15); }
 
-#adsTableBody tr:nth-child(odd)  td { background: #46301a; color: #fbf1e6; }
-#adsTableBody tr:nth-child(even) td { background: #543c22; color: #fbf1e6; }
-#adsTableBody tr:hover           td { background: #644a2a !important; color: #ffffff; }
+#adsTableBody tr:nth-child(odd)  td { background: #fffafa; color: #111111; }
+#adsTableBody tr:nth-child(even) td { background: #fff5f5; color: #111111; }
+#adsTableBody tr:hover           td { background: #ffcdd2 !important; color: #000000; }
 #adsTableBody tr.total-row       td {
-  background: #5c4222;
-  color: #f0b06c;
-  border-top: 2px solid rgba(228,166,90,0.55);
+  background: #ef9a9a;
+  color: #4a0000;
+  border-top: 2px solid rgba(0,0,0,0.2);
 }
 
 /* ──────────────────────────────────────────
-   TABLE 4 — Upload Dates  (Deep Purple)
+   TABLE 4 — Upload Dates  (Warm Sand)
    ────────────────────────────────────────── */
-#uploadDatesTable .section-row th { background: #1c1040; }
-#uploadDatesTable .col-row     th { background: #261858; border-bottom-color: rgba(176,136,240,0.55); }
+#uploadDatesTable .section-row th { background: #d7ccc8; }
+#uploadDatesTable .col-row     th { background: #efebe9; border-bottom-color: rgba(0,0,0,0.15); }
 
-#uploadDatesTableBody tr:nth-child(odd)  td { background: #2e1c60; color: #f4efff; }
-#uploadDatesTableBody tr:nth-child(even) td { background: #382470; color: #f4efff; }
-#uploadDatesTableBody tr:hover           td { background: #442c88 !important; color: #ffffff; }
+#uploadDatesTableBody tr:nth-child(odd)  td { background: #fafafa; color: #111111; }
+#uploadDatesTableBody tr:nth-child(even) td { background: #f5f5f5; color: #111111; }
+#uploadDatesTableBody tr:hover           td { background: #d7ccc8 !important; color: #000000; }
 
 /* ── N/A cell ── */
-.na-cell { color: rgba(255,255,255,0.3); font-style: italic; }
+.na-cell { color: rgba(0,0,0,0.4); font-style: italic; }
 
 /* ── Editable cells ── */
 .mis-table td[title] { cursor: pointer; }
 .mis-table td[title]:hover {
-  outline: 1px solid rgba(255, 255, 255, 0.2);
+  outline: 1px solid rgba(0, 0, 0, 0.3);
   outline-offset: -1px;
 }
 
 .inline-edit-input {
   width: 100%;
-  border: 1px solid rgba(255,255,255,0.3);
+  border: 1px solid rgba(0,0,0,0.3);
   border-radius: 4px;
   padding: 2px 6px;
   font-size: inherit;
   font-family: inherit;
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+  background: rgba(255, 255, 255, 0.8);
+  color: #111111;
   text-align: center;
   outline: none;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
 }
 
 .edit-hint {
   text-align: center;
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--t3);
   margin-top: -8px;
 }
@@ -915,9 +916,9 @@ body {
   border-radius: 7px;
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.04) 0%,
-    rgba(255, 255, 255, 0.13) 40%,
-    rgba(255, 255, 255, 0.04) 80%
+    rgba(0, 0, 0, 0.04) 0%,
+    rgba(0, 0, 0, 0.12) 40%,
+    rgba(0, 0, 0, 0.04) 80%
   );
   background-size: 200% 100%;
   animation: skel-shimmer 1.5s ease-in-out infinite;
