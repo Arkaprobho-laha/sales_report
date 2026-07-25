@@ -17,7 +17,7 @@ module.exports = async function handler(req, res) {
   }
 
   // ── Parse body
-  const { imageBase64, subject, dashboardDate } = req.body || {};
+  const { imageBase64, subject, dashboardDate, additionalEmails } = req.body || {};
 
   if (!imageBase64) {
     return res.status(400).json({ error: 'Missing imageBase64 in request body.' });
@@ -46,7 +46,13 @@ module.exports = async function handler(req, res) {
     year: 'numeric'
   });
   const emailSubject = subject || `DALUCI Sales and Ads Report — ${dateStr}`;
-  const recipients = MAIL_RECIPIENTS.split(',').map(e => e.trim()).filter(Boolean);
+  
+  // Combine env recipients with user-provided additional ones
+  let allRecipients = MAIL_RECIPIENTS ? MAIL_RECIPIENTS.split(',') : [];
+  if (additionalEmails && typeof additionalEmails === 'string') {
+    allRecipients = allRecipients.concat(additionalEmails.split(','));
+  }
+  const recipients = allRecipients.map(e => e.trim()).filter(Boolean);
 
   const transporter = nodemailer.createTransport({
     service: 'gmail',

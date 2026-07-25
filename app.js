@@ -93,6 +93,12 @@
     els.newTokenError = document.getElementById('newTokenError');
     els.applyTokenBtn = document.getElementById('applyTokenBtn');
     els.cancelChangeBtn = document.getElementById('cancelChangeBtn');
+    // Email modal
+    els.emailModal = document.getElementById('emailModal');
+    els.emailBackdrop = document.getElementById('emailBackdrop');
+    els.additionalEmailsInput = document.getElementById('additionalEmailsInput');
+    els.sendEmailConfirmBtn = document.getElementById('sendEmailConfirmBtn');
+    els.cancelEmailBtn = document.getElementById('cancelEmailBtn');
     // Dashboard content
     els.dashContent = document.getElementById('dashContent');
     els.authToast = document.getElementById('authToast');
@@ -130,7 +136,17 @@
     els.cancelChangeBtn.addEventListener('click', onCancelChange);
     els.ctmBackdrop.addEventListener('click', onCancelChange);
     els.snapshotBtn.addEventListener('click', takeSnapshot);
-    els.emailBtn.addEventListener('click', emailSnapshot);
+    els.emailBtn.addEventListener('click', function () {
+      els.additionalEmailsInput.value = '';
+      els.emailModal.hidden = false;
+    });
+    els.cancelEmailBtn.addEventListener('click', function () { els.emailModal.hidden = true; });
+    els.emailBackdrop.addEventListener('click', function () { els.emailModal.hidden = true; });
+    els.sendEmailConfirmBtn.addEventListener('click', function () {
+      var additionalEmails = els.additionalEmailsInput.value.trim();
+      els.emailModal.hidden = true;
+      emailSnapshot(additionalEmails);
+    });
     els.debugBtn.addEventListener('click', function () { els.debugDrawer.hidden = false; renderDebugPage(); });
     els.closeDebugBtn.addEventListener('click', function () { els.debugDrawer.hidden = true; });
     els.debugPrevBtn.addEventListener('click', function () { goToDebugPage(state.debugPage - 1); });
@@ -994,7 +1010,7 @@
   // EMAIL SNAPSHOT  (capture → base64 → POST to /api/send-snapshot)
   // =====================================================================
 
-  function emailSnapshot() {
+  function emailSnapshot(additionalEmails) {
     var btn = els.emailBtn;
     var origHTML = btn.innerHTML;
     btn.disabled = true;
@@ -1023,7 +1039,8 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             imageBase64: dataUrl,
-            dashboardDate: dateStr
+            dashboardDate: dateStr,
+            additionalEmails: additionalEmails
           })
         });
       })

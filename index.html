@@ -84,6 +84,20 @@
       </div>
     </div>
 
+    <!-- ══ EMAIL MODAL (portal-level overlay) ══ -->
+    <div id="emailModal" class="ctm" hidden>
+      <div class="ctm-backdrop" id="emailBackdrop"></div>
+      <div class="ctm-card">
+        <div class="ctm-title">📧 Send Dashboard Snapshot</div>
+        <p class="ctm-hint">Add additional email recipients (comma-separated). Leave blank to send to defaults.</p>
+        <textarea id="additionalEmailsInput" class="af-textarea" rows="2" placeholder="user@example.com, manager@daluci.com"></textarea>
+        <div class="ctm-actions">
+          <button id="sendEmailConfirmBtn" class="btn-connect ctm-apply">Send Email</button>
+          <button id="cancelEmailBtn" class="btn-cb">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ══ DASHBOARD CONTENT ══ -->
     <div id="dashContent" class="dash-content" hidden>
 
