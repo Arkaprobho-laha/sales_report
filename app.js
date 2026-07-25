@@ -440,9 +440,6 @@
   function addDays(d, n) {
     const c = new Date(d); c.setDate(c.getDate() + n); return c;
   }
-  function daysInMonth(d) {
-    return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-  }
   function firstOfMonth(d) {
     return new Date(d.getFullYear(), d.getMonth(), 1);
   }
@@ -753,7 +750,6 @@
   function renderRunrateTable(ctx) {
     let overallOrder = 0, overallGmv = 0, daluciOrder = 0, daluciGmv = 0;
 
-    let apiSuccess = false;
     if (ctx.categoryRunrateOverall && ctx.categoryRunrateOverall.data && ctx.categoryRunrateDaluci && ctx.categoryRunrateDaluci.data) {
       const overallData = ctx.categoryRunrateOverall.data;
       const daluciData = ctx.categoryRunrateDaluci.data;
@@ -764,25 +760,9 @@
         
         daluciOrder = numOrZero(daluciData.final_summary.total_order_runrate);
         daluciGmv = numOrZero(daluciData.final_summary.total_gmv_runrate);
-        
-        apiSuccess = true;
       }
     }
     
-    if (!apiSuccess) {
-      ctx.perPlatform.forEach(function (p) {
-        const dim = daysInMonth(ctx.dashboardDate);
-        const elapsed = p.daysElapsed || 0;
-        if (!elapsed) return;
-        const factor = dim / elapsed;
-
-        overallOrder += p.monthToDate.all.order * factor;
-        overallGmv += p.monthToDate.all.gmv * factor;
-        daluciOrder += p.monthToDate.daluci.order * factor;
-        daluciGmv += p.monthToDate.daluci.gmv * factor;
-      });
-    }
-
     const share = overallGmv > 0 ? (daluciGmv / overallGmv * 100) : 0;
 
     setEditableRows(els.runrateTableBody,
