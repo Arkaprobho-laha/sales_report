@@ -506,11 +506,23 @@
           els.reportRoot.hidden = false;
         }
 
-        return fetchAllPlatformData(uploadMap, dashboardDate).then(function (perPlatform) {
+        return Promise.all([
+          fetchAllPlatformData(uploadMap, dashboardDate),
+          apiGet('/category-runrate', { month: dashboardDate.getMonth() + 1, year: dashboardDate.getFullYear() }).catch(function (err) {
+            console.warn('Failed to fetch overall category-runrate:', err);
+            return null;
+          }),
+          apiGet('/category-runrate', { month: dashboardDate.getMonth() + 1, year: dashboardDate.getFullYear(), brand: 'Daluci' }).catch(function (err) {
+            console.warn('Failed to fetch Daluci category-runrate:', err);
+            return null;
+          })
+        ]).then(function (results) {
           return {
             uploadMap: uploadMap,
             dashboardDate: dashboardDate,
-            perPlatform: perPlatform
+            perPlatform: results[0],
+            categoryRunrateOverall: results[1],
+            categoryRunrateDaluci: results[2]
           };
         });
       })
@@ -741,17 +753,35 @@
   function renderRunrateTable(ctx) {
     let overallOrder = 0, overallGmv = 0, daluciOrder = 0, daluciGmv = 0;
 
-    ctx.perPlatform.forEach(function (p) {
-      const dim = daysInMonth(ctx.dashboardDate);
-      const elapsed = p.daysElapsed || 0;
-      if (!elapsed) return;
-      const factor = dim / elapsed;
+    let apiSuccess = false;
+    if (ctx.categoryRunrateOverall && ctx.categoryRunrateOverall.data && ctx.categoryRunrateDaluci && ctx.categoryRunrateDaluci.data) {
+      const overallData = ctx.categoryRunrateOverall.data;
+      const daluciData = ctx.categoryRunrateDaluci.data;
+      
+      if (overallData.final_summary && daluciData.final_summary) {
+        overallOrder = numOrZero(overallData.final_summary.total_order_runrate);
+        overallGmv = numOrZero(overallData.final_summary.total_gmv_runrate);
+        
+        daluciOrder = numOrZero(daluciData.final_summary.total_order_runrate);
+        daluciGmv = numOrZero(daluciData.final_summary.total_gmv_runrate);
+        
+        apiSuccess = true;
+      }
+    }
+    
+    if (!apiSuccess) {
+      ctx.perPlatform.forEach(function (p) {
+        const dim = daysInMonth(ctx.dashboardDate);
+        const elapsed = p.daysElapsed || 0;
+        if (!elapsed) return;
+        const factor = dim / elapsed;
 
-      overallOrder += p.monthToDate.all.order * factor;
-      overallGmv += p.monthToDate.all.gmv * factor;
-      daluciOrder += p.monthToDate.daluci.order * factor;
-      daluciGmv += p.monthToDate.daluci.gmv * factor;
-    });
+        overallOrder += p.monthToDate.all.order * factor;
+        overallGmv += p.monthToDate.all.gmv * factor;
+        daluciOrder += p.monthToDate.daluci.order * factor;
+        daluciGmv += p.monthToDate.daluci.gmv * factor;
+      });
+    }
 
     const share = overallGmv > 0 ? (daluciGmv / overallGmv * 100) : 0;
 
