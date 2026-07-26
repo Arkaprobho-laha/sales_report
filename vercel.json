@@ -1,6 +1,18 @@
 {
   "rewrites": [
     {
+      "source": "/api/v1/dashboard-bff/sales-details-totals",
+      "destination": "/api/sales-details-totals"
+    },
+    {
+      "source": "/api/v1/dashboard-bff/sales/last-upload-dates",
+      "destination": "/api/last-upload-dates"
+    },
+    {
+      "source": "/api/v1/upload-meesho-ads",
+      "destination": "/api/upload-meesho-ads"
+    },
+    {
       "source": "/api/v1/:match*",
       "destination": "https://daluci.digital.dhineu.com/bff/v1/:match*"
     }

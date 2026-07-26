@@ -87,6 +87,8 @@
     els.changeTokenBtn = document.getElementById('changeTokenBtn');
     els.debugBtn = document.getElementById('debugBtn');
     els.disconnectBtn = document.getElementById('disconnectBtn');
+    els.meeshoUploadInput = document.getElementById('meeshoUploadInput');
+    els.meeshoUploadBtn = document.getElementById('meeshoUploadBtn');
     // Change token modal
     els.changeTokenModal = document.getElementById('changeTokenModal');
     els.ctmBackdrop = document.getElementById('ctmBackdrop');
@@ -133,6 +135,52 @@
     els.disconnectBtn.addEventListener('click', onDisconnect);
     els.refreshBtn.addEventListener('click', function () { loadDashboard(false); });
     els.dateFilter.addEventListener('change', function () { loadDashboard(false); });
+    
+    els.meeshoUploadBtn.addEventListener('click', function () {
+      els.meeshoUploadInput.click();
+    });
+    
+    els.meeshoUploadInput.addEventListener('change', function (e) {
+      if (!e.target.files || e.target.files.length === 0) return;
+      var file = e.target.files[0];
+      els.meeshoUploadBtn.textContent = 'Uploading...';
+      els.meeshoUploadBtn.disabled = true;
+      
+      fetch('/api/v1/upload-meesho-ads', {
+        method: 'POST',
+        headers: {
+          'Content-Length': file.size,
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        },
+        body: file
+      })
+      .then(function(res) {
+        if(!res.ok) {
+          return res.text().then(text => {
+            let errMsg = 'Upload failed';
+            try {
+              errMsg = JSON.parse(text).error;
+            } catch(e) { errMsg = text; }
+            throw new Error(errMsg);
+          });
+        }
+        return res.json();
+      })
+      .then(function() {
+        alert('Meesho Ads report uploaded and processed successfully!');
+        els.meeshoUploadBtn.textContent = '📄 Meesho Ads';
+        els.meeshoUploadBtn.disabled = false;
+        els.meeshoUploadInput.value = '';
+        loadDashboard(false);
+      })
+      .catch(function(err) {
+        alert('Error uploading Meesho Ads report: ' + err.message);
+        els.meeshoUploadBtn.textContent = '📄 Meesho Ads';
+        els.meeshoUploadBtn.disabled = false;
+        els.meeshoUploadInput.value = '';
+      });
+    });
+
     els.changeTokenBtn.addEventListener('click', onChangeToken);
     els.applyTokenBtn.addEventListener('click', onApplyToken);
     els.cancelChangeBtn.addEventListener('click', onCancelChange);
