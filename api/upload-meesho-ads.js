@@ -64,25 +64,34 @@ module.exports = async function handler(req, res) {
       if (!rawDate) continue;
       
       let dateStr = String(rawDate).trim();
-      let parsedDate = new Date(dateStr);
       
-      if (!isNaN(parsedDate.getTime())) {
-        // Valid Date object
-        dateStr = parsedDate.toISOString().split('T')[0];
-      } else {
-        // Try parsing DD-MM-YYYY or DD/MM/YYYY
-        let parts = dateStr.split(/[-/]/);
-        if (parts.length === 3) {
-          let day = parts[0];
-          let month = parts[1];
-          let year = parts[2];
-          if (year.length === 2) year = '20' + year; // handle YY
-          // Format as YYYY-MM-DD
+      // Prioritize DD-MM-YYYY or DD/MM/YYYY parsing first!
+      // Because new Date("01-07-2026") parses as Jan 7th instead of July 1st.
+      let parts = dateStr.split(/[-/]/);
+      if (parts.length === 3) {
+        let day = parts[0];
+        let month = parts[1];
+        let year = parts[2];
+        if (year.length === 2) year = '20' + year; // handle YY
+        
+        // If the first part is 4 digits, it's already YYYY-MM-DD
+        if (day.length === 4) {
+          dateStr = `${day}-${month.padStart(2, '0')}-${year.padStart(2, '0')}`;
+        } else {
+          // DD-MM-YYYY
           dateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+      } else {
+        // Fallback to JS Date parsing
+        let parsedDate = new Date(dateStr);
+        if (!isNaN(parsedDate.getTime())) {
+          dateStr = parsedDate.toISOString().split('T')[0];
         }
       }
 
-      const adSpend = parseFloat(row['Ad Spend']) || 0.0;
+      // Remove commas from numbers if present
+      let rawSpend = String(row['Ad Spend'] || '0').replace(/,/g, '');
+      const adSpend = parseFloat(rawSpend) || 0.0;
 
       if (!grouped[dateStr]) {
         grouped[dateStr] = {
