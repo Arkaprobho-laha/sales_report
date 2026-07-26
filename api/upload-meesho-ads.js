@@ -63,13 +63,23 @@ module.exports = async function handler(req, res) {
       let rawDate = row['Date'];
       if (!rawDate) continue;
       
-      let dateStr = rawDate;
-      // If it's MM/DD/YY or similar, let's try to normalize it to YYYY-MM-DD
-      // xlsx with raw: false and dateNF might output YYYY-MM-DD directly
-      // Or we just parse it if it's a string
-      let parsedDate = new Date(rawDate);
+      let dateStr = String(rawDate).trim();
+      let parsedDate = new Date(dateStr);
+      
       if (!isNaN(parsedDate.getTime())) {
+        // Valid Date object
         dateStr = parsedDate.toISOString().split('T')[0];
+      } else {
+        // Try parsing DD-MM-YYYY or DD/MM/YYYY
+        let parts = dateStr.split(/[-/]/);
+        if (parts.length === 3) {
+          let day = parts[0];
+          let month = parts[1];
+          let year = parts[2];
+          if (year.length === 2) year = '20' + year; // handle YY
+          // Format as YYYY-MM-DD
+          dateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
       }
 
       const adSpend = parseFloat(row['Ad Spend']) || 0.0;
