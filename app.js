@@ -83,6 +83,7 @@
     els.snapshotBtn = document.getElementById('snapshotBtn');
     els.emailBtn = document.getElementById('emailBtn');
     els.refreshBtn = document.getElementById('refreshBtn');
+    els.dateFilter = document.getElementById('dateFilter');
     els.changeTokenBtn = document.getElementById('changeTokenBtn');
     els.debugBtn = document.getElementById('debugBtn');
     els.disconnectBtn = document.getElementById('disconnectBtn');
@@ -131,6 +132,7 @@
     els.connectBtn.addEventListener('click', onConnectClick);
     els.disconnectBtn.addEventListener('click', onDisconnect);
     els.refreshBtn.addEventListener('click', function () { loadDashboard(false); });
+    els.dateFilter.addEventListener('change', function () { loadDashboard(false); });
     els.changeTokenBtn.addEventListener('click', onChangeToken);
     els.applyTokenBtn.addEventListener('click', onApplyToken);
     els.cancelChangeBtn.addEventListener('click', onCancelChange);
@@ -478,22 +480,45 @@
         if (fromConnect) showAuthToast();
 
         const uploadMap = {};
+        const originalUploadMap = {};
         (uploadResp && uploadResp.data ? uploadResp.data : []).forEach(function (row) {
-          uploadMap[row.platform] = parseAPIDate(row.lastUploadDate);
+          const d = parseAPIDate(row.lastUploadDate);
+          uploadMap[row.platform] = d;
+          originalUploadMap[row.platform] = d;
         });
+        originalUploadMap['Daluci_Website'] = addDays(new Date(), -1);
 
-        const dashboardDate = new Date();
-        const headerDate = addDays(dashboardDate, -1);
-        
-        // Daluci Website data is real-time; force it to use the dashboard header date
-        uploadMap['Daluci_Website'] = headerDate;
+        let dashboardDate = new Date();
+        let headerDate = addDays(dashboardDate, -1);
+        let isDateFiltered = false;
+        if (els.dateFilter && els.dateFilter.value) {
+          const parts = els.dateFilter.value.split('-');
+          headerDate = new Date(parts[0], parts[1] - 1, parts[2]);
+          dashboardDate = headerDate; // So that firstOfMonth(dashboardDate) is correct
+          isDateFiltered = true;
+        }
+
+        if (isDateFiltered) {
+          PLATFORMS.forEach(function (p) {
+            const actualLastUpload = uploadMap[p.key];
+            if (actualLastUpload && headerDate > actualLastUpload) {
+              uploadMap[p.key] = actualLastUpload;
+            } else {
+              uploadMap[p.key] = headerDate;
+            }
+          });
+        } else {
+          // Daluci Website data is real-time; force it to use the dashboard header date
+          uploadMap['Daluci_Website'] = headerDate;
+        }
 
         // ── LAZY LOAD: show shell + Table 4 + skeletons for Tables 1–3 NOW ──
         els.reportTitleCell.textContent =
           'DALUCI  |  SALES AND ADS REPORT (' + formatDMY(headerDate) + ')';
 
         // Table 4 renders immediately (upload dates are already in hand)
-        renderUploadDatesTable({ uploadMap: uploadMap, dashboardDate: dashboardDate });
+        // Table 4 always shows the ALL-TIME latest dates, ignoring the date filter.
+        renderUploadDatesTable({ uploadMap: originalUploadMap, dashboardDate: dashboardDate });
 
         // Tables 1–3 show shimmer skeletons until platform data arrives
         showTableSkeletons();
@@ -504,7 +529,7 @@
         }
 
         return Promise.all([
-          fetchAllPlatformData(uploadMap, dashboardDate),
+          fetchAllPlatformData(uploadMap, dashboardDate, headerDate),
           apiGet('/category-runrate', { month: dashboardDate.getMonth() + 1, year: dashboardDate.getFullYear() }).catch(function (err) {
             console.warn('Failed to fetch overall category-runrate:', err);
             return null;
@@ -557,7 +582,7 @@
   // FETCH ALL PLATFORM DATA
   // =====================================================================
 
-  function fetchAllPlatformData(uploadMap, dashboardDate) {
+  function fetchAllPlatformData(uploadMap, dashboardDate, headerDate) {
     const monthStart = toISODate(firstOfMonth(dashboardDate));
 
     const calls = PLATFORMS.map(function (p) {
@@ -568,38 +593,95 @@
         return Promise.resolve({
           platform: p,
           lastUpload: null,
+          adsDate: null,
           yesterday: { all: zeroTotals(), daluci: zeroTotals() },
           monthToDate: { all: zeroTotals(), daluci: zeroTotals() },
           daysElapsed: 0
         });
       }
 
-      const yesterdayAll = apiGet(SALES_TOTALS_PATH,
-        { startDate: yDate, endDate: yDate, platform: p.key })
-        .then(function (r) { return readTotals(r && r.data, false); });
+      let pSales = Promise.all([
+        apiGet(SALES_TOTALS_PATH, { startDate: yDate, endDate: yDate, platform: p.key }).then(function (r) { return readTotals(r && r.data, false); }),
+        apiGet(SALES_TOTALS_PATH, { startDate: yDate, endDate: yDate, platform: p.key, brand: BRAND_FILTER }).then(function (r) { return readTotals(r && r.data, true); }),
+        apiGet(SALES_TOTALS_PATH, { startDate: monthStart, endDate: yDate, platform: p.key }).then(function (r) { return readTotals(r && r.data, false); }),
+        apiGet(SALES_TOTALS_PATH, { startDate: monthStart, endDate: yDate, platform: p.key, brand: BRAND_FILTER }).then(function (r) { return readTotals(r && r.data, true); })
+      ]).then(function (res) {
+        return { yAll: res[0], yDal: res[1], mAll: res[2], mDal: res[3] };
+      });
 
-      const yesterdayDaluci = apiGet(SALES_TOTALS_PATH,
-        { startDate: yDate, endDate: yDate, platform: p.key, brand: BRAND_FILTER })
-        .then(function (r) { return readTotals(r && r.data, true); });
-
-      const mtdAll = apiGet(SALES_TOTALS_PATH,
-        { startDate: monthStart, endDate: yDate, platform: p.key })
-        .then(function (r) { return readTotals(r && r.data, false); });
-
-      const mtdDaluci = apiGet(SALES_TOTALS_PATH,
-        { startDate: monthStart, endDate: yDate, platform: p.key, brand: BRAND_FILTER })
-        .then(function (r) { return readTotals(r && r.data, true); });
-
-      return Promise.all([yesterdayAll, yesterdayDaluci, mtdAll, mtdDaluci])
-        .then(function (res) {
+      let pAds;
+      if (ADS_EXCLUDED_KEYS.indexOf(p.key) !== -1) {
+        pAds = Promise.resolve({ date: null, yAllAds: 0, yDalAds: 0, mAllAds: 0, mDalAds: 0 });
+      } else {
+        function searchAdsSingle(dateObj, attempts, isDaluci) {
+          if (attempts <= 0) return Promise.resolve({ date: null, yAds: 0, mAds: 0 });
+          const dStr = toISODate(dateObj);
+          return apiGet(SALES_TOTALS_PATH, { startDate: dStr, endDate: dStr, platform: p.key, brand: isDaluci ? BRAND_FILTER : undefined })
+            .then(function (r) {
+              const totals = readTotals(r && r.data, isDaluci);
+              if (totals.ads > 0) {
+                return apiGet(SALES_TOTALS_PATH, { startDate: monthStart, endDate: dStr, platform: p.key, brand: isDaluci ? BRAND_FILTER : undefined })
+                  .then(function (mr) {
+                    const mTotals = readTotals(mr && mr.data, isDaluci);
+                    return { date: dateObj, yAds: totals.ads, mAds: mTotals.ads };
+                  });
+              }
+              return searchAdsSingle(addDays(dateObj, -1), attempts - 1, isDaluci);
+            });
+        }
+        
+        pAds = Promise.all([
+          searchAdsSingle(headerDate, 5, false),
+          searchAdsSingle(headerDate, 5, true)
+        ]).then(function (ab) {
+          const all = ab[0];
+          const dal = ab[1];
+          let finalDate = all.date || dal.date || null;
+          if (all.date && dal.date && all.date > dal.date) finalDate = all.date;
+          if (all.date && dal.date && dal.date > all.date) finalDate = dal.date;
+          
+          let yAllAdsToDisplay = all.yAds;
+          let yDalAdsToDisplay = dal.yAds;
+          let mAllAdsToDisplay = all.mAds;
+          let mDalAdsToDisplay = dal.mAds;
+          
+          if (all.date && finalDate && all.date.getTime() !== finalDate.getTime()) {
+             yAllAdsToDisplay = 0;
+             mAllAdsToDisplay = 0;
+          }
+          if (dal.date && finalDate && dal.date.getTime() !== finalDate.getTime()) {
+             yDalAdsToDisplay = 0;
+             mDalAdsToDisplay = 0;
+          }
+          
           return {
-            platform: p,
-            lastUpload: lastUpload,
-            yesterday: { all: res[0], daluci: res[1] },
-            monthToDate: { all: res[2], daluci: res[3] },
-            daysElapsed: lastUpload.getDate()
+            date: finalDate,
+            yAllAds: yAllAdsToDisplay,
+            yDalAds: yDalAdsToDisplay,
+            mAllAds: mAllAdsToDisplay,
+            mDalAds: mDalAdsToDisplay
           };
         });
+      }
+
+      return Promise.all([pSales, pAds]).then(function (res) {
+        const sales = res[0];
+        const ads = res[1];
+        return {
+          platform: p,
+          lastUpload: lastUpload,
+          adsDate: ads.date || lastUpload,
+          yesterday: { 
+            all: { order: sales.yAll.order, gmv: sales.yAll.gmv, ads: ads.yAllAds }, 
+            daluci: { order: sales.yDal.order, gmv: sales.yDal.gmv, ads: ads.yDalAds } 
+          },
+          monthToDate: { 
+            all: { order: sales.mAll.order, gmv: sales.mAll.gmv, ads: ads.mAllAds }, 
+            daluci: { order: sales.mDal.order, gmv: sales.mDal.gmv, ads: ads.mDalAds } 
+          },
+          daysElapsed: lastUpload.getDate()
+        };
+      });
     });
 
     return Promise.all(calls);
@@ -715,9 +797,7 @@
         ? (daluci.gmv / totalDaluciGmv * 100) : 0;
 
       let label = p.platform.label;
-      const headerDate = addDays(ctx.dashboardDate, -1);
-      const isStale = p.lastUpload && !sameDay(p.lastUpload, headerDate);
-      if (p.lastUpload && isStale) {
+      if (p.lastUpload) {
         label += ' - (' + formatDMY(p.lastUpload) + ')';
       }
 
@@ -796,9 +876,16 @@
       totalYAll += yAll; totalMAll += mAll;
       totalYDaluci += yDaluci; totalMDaluci += mDaluci;
 
+      let label = p.platform.label;
+      if (p.adsDate) {
+        label += ' - (' + formatDMY(p.adsDate) + ')';
+      } else if (p.lastUpload) {
+        label += ' - (' + formatDMY(p.lastUpload) + ')';
+      }
+
       rows.push(
         '<tr>' +
-        '<td>' + escapeHtml(p.platform.label) + '</td>' +
+        '<td>' + escapeHtml(label) + '</td>' +
         '<td>' + fmtAds(yAll) + '</td>' +
         '<td>' + fmtAds(mAll) + '</td>' +
         '<td>' + fmtAds(yDaluci) + '</td>' +
@@ -1038,7 +1125,9 @@
     // Using plain "today" here made the email subject/body show one day
     // ahead of what the attached snapshot actually says. Reuse the same
     // addDays(new Date(), -1) so this always agrees with the on-screen title.
-    var reportDate = addDays(new Date(), -1);
+    var reportDate = els.dateFilter && els.dateFilter.value
+      ? new Date(els.dateFilter.value.split('-')[0], els.dateFilter.value.split('-')[1] - 1, els.dateFilter.value.split('-')[2])
+      : addDays(new Date(), -1);
     var dateStr = pad2(reportDate.getDate()) + '/' + pad2(reportDate.getMonth() + 1) + '/' + reportDate.getFullYear();
 
     captureSnapshot('png')
