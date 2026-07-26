@@ -2,13 +2,13 @@ const { sql } = require('@vercel/postgres');
 const xlsx = require('xlsx');
 
 // Disable Vercel's default body parser to handle raw binary data
-export const config = {
+module.exports.config = {
   api: {
     bodyParser: false,
   },
 };
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }

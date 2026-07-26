@@ -1,7 +1,7 @@
 const { sql } = require('@vercel/postgres');
 const https = require('https');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // We need to proxy this to the actual API, then append the postgres data
   const { startDate, endDate, brand } = req.query;
 

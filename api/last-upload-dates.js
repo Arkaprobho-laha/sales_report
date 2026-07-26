@@ -1,6 +1,6 @@
 const { sql } = require('@vercel/postgres');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const url = `https://daluci.digital.dhineu.com/bff/v1/dashboard-bff/sales/last-upload-dates`;
 
   try {
