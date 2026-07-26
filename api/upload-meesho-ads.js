@@ -98,7 +98,10 @@ module.exports = async function handler(req, res) {
           { onConflict: 'date,brand' }
         );
       
-      if (err1) console.error("Supabase upsert error (ALL):", err1);
+      if (err1) {
+        console.error("Supabase upsert error (ALL):", err1);
+        return res.status(500).json({ error: 'Database Error (ALL): ' + (err1.message || JSON.stringify(err1)) });
+      }
 
       const { error: err2 } = await supabase
         .from('meesho_ads')
@@ -107,7 +110,10 @@ module.exports = async function handler(req, res) {
           { onConflict: 'date,brand' }
         );
         
-      if (err2) console.error("Supabase upsert error (DALUCI):", err2);
+      if (err2) {
+        console.error("Supabase upsert error (DALUCI):", err2);
+        return res.status(500).json({ error: 'Database Error (DALUCI): ' + (err2.message || JSON.stringify(err2)) });
+      }
     }
 
     res.status(200).json({ success: true, message: 'Meesho Ads updated in Postgres' });
