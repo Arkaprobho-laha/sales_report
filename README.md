@@ -17,31 +17,38 @@ A responsive, web-based dashboard application designed to visualize and track sa
 ## Technology Stack
 
 - **Frontend**: HTML5, Vanilla JavaScript, CSS3
-- **Local Dev Server**: Python 3 (`http.server`) acting as an API proxy
+- **Local Dev Server**: Vercel CLI
 - **Deployment**: Configured for deployment on Vercel (includes `vercel.json` and a Node.js-based `/api/send-snapshot` serverless function).
 
-## Local Development Setup
+### 1. Local Development (Vercel)
 
-To run this dashboard locally, you'll need Python 3 installed.
+You can run this project locally using the Vercel CLI, which will also run the serverless functions (`api/` folder).
 
-1. **Clone the repository** (or download the files).
-2. **Start the local proxy server**:
-   Open a terminal in the project directory and run:
+1. Install Vercel CLI (if not installed):
    ```bash
-   python server.py
+   npm i -g vercel
    ```
-   *This starts a local Python HTTP server on port 8085 that statically serves the files and proxies `/api/*` requests to the real backend (`https://daluci.digital.dhineu.com`) to bypass CORS.*
-3. **Open the App**:
-   Navigate to [http://localhost:8085](http://localhost:8085) in your web browser.
-4. **Authenticate**:
-   Enter your Bearer Token in the authentication prompt to connect to the API.
+2. Link the project and pull env vars:
+   ```bash
+   vercel link
+   vercel env pull .env.development.local
+   ```
+3. Start the dev server:
+   ```bash
+   vercel dev
+   ```
+   Navigate to [http://localhost:3000](http://localhost:3000) in your web browser.
+
+### 2. Deployment
+
+This project is configured to be deployed directly to Vercel. 
+Just connect the GitHub repository to Vercel and it will automatically deploy the frontend and the Node.js serverless functions.
 
 ## Project Structure
 
 - `index.html`: The main markup for the dashboard, including the authentication screen and the connected dashboard layout.
 - `style.css`: All styling, including the responsive layout, table designs, light/warm color themes, and CSS animations.
 - `app.js`: Client-side logic for handling API calls, parsing responses, injecting data into the DOM, capturing snapshots, and managing local storage.
-- `server.py`: A simple Python HTTP Server that proxies API requests.
 - `package.json`: Contains project dependencies (such as `nodemailer` for the serverless function).
 - `vercel.json`: Deployment configuration for Vercel.
 - `/api/`: Contains serverless functions (like snapshot mailing).
