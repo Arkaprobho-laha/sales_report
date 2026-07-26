@@ -1,16 +1,28 @@
-const { sql } = require('@vercel/postgres');
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_meesho_ads_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
+  process.env.meesho_ads_SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.meesho_ads_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY
+);
 
 module.exports = async function handler(req, res) {
   const url = `https://daluci.digital.dhineu.com/bff/v1/dashboard-bff/sales/last-upload-dates`;
 
   try {
-    // 1. Fetch from Postgres
+    // 1. Fetch from Postgres via Supabase
     let maxDate = null;
-    const { rows } = await sql`
-      SELECT MAX(date) as max_date FROM meesho_ads WHERE brand = 'ALL'
-    `;
-    if (rows.length > 0 && rows[0].max_date) {
-      maxDate = rows[0].max_date;
+    const { data, error } = await supabase
+      .from('meesho_ads')
+      .select('date')
+      .eq('brand', 'ALL')
+      .order('date', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.error('Supabase error:', error);
+    }
+
+    if (data && data.length > 0 && data[0].date) {
+      maxDate = data[0].date;
     }
 
     // 2. Fetch from External API
