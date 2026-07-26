@@ -19,14 +19,21 @@ module.exports = async function handler(req, res) {
 
   try {
     // Collect the raw binary data from the request
-    const chunks = [];
-    for await (const chunk of req) {
-      chunks.push(chunk);
+    let buffer;
+    if (Buffer.isBuffer(req.body)) {
+      buffer = req.body;
+    } else if (req.body && typeof req.body === 'string') {
+      buffer = Buffer.from(req.body, 'base64');
+    } else {
+      const chunks = [];
+      for await (const chunk of req) {
+        chunks.push(chunk);
+      }
+      buffer = Buffer.concat(chunks);
     }
-    const buffer = Buffer.concat(chunks);
 
-    if (buffer.length === 0) {
-      console.error("Upload error: Empty file buffer");
+    if (!buffer || buffer.length === 0) {
+      console.error("Upload error: Empty file buffer. req.body type:", typeof req.body);
       return res.status(400).json({ error: 'Empty file' });
     }
 
