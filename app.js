@@ -668,7 +668,8 @@
             .then(function (r) {
               const totals = readTotals(r && r.data, isDaluci);
               if (totals.ads > 0) {
-                return apiGet(SALES_TOTALS_PATH, { startDate: monthStart, endDate: dStr, platform: p.key, brand: isDaluci ? BRAND_FILTER : undefined })
+                const adsMonthStart = toISODate(firstOfMonth(dateObj));
+                return apiGet(SALES_TOTALS_PATH, { startDate: adsMonthStart, endDate: dStr, platform: p.key, brand: isDaluci ? BRAND_FILTER : undefined })
                   .then(function (mr) {
                     const mTotals = readTotals(mr && mr.data, isDaluci);
                     return { date: dateObj, yAds: totals.ads, mAds: mTotals.ads };
