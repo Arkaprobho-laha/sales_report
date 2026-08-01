@@ -578,11 +578,11 @@
 
         return Promise.all([
           fetchAllPlatformData(uploadMap, dashboardDate, headerDate),
-          apiGet('/category-runrate', { month: dashboardDate.getMonth() + 1, year: dashboardDate.getFullYear() }).catch(function (err) {
+          apiGet('/category-runrate', { month: headerDate.getMonth() + 1, year: headerDate.getFullYear() }).catch(function (err) {
             console.warn('Failed to fetch overall category-runrate:', err);
             return null;
           }),
-          apiGet('/category-runrate', { month: dashboardDate.getMonth() + 1, year: dashboardDate.getFullYear(), brand: 'Daluci' }).catch(function (err) {
+          apiGet('/category-runrate', { month: headerDate.getMonth() + 1, year: headerDate.getFullYear(), brand: 'Daluci' }).catch(function (err) {
             console.warn('Failed to fetch Daluci category-runrate:', err);
             return null;
           })
