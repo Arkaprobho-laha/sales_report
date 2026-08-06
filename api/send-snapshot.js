@@ -17,7 +17,7 @@ module.exports = async function handler(req, res) {
   }
 
   // ── Parse body
-  const { imageBase64, subject, dashboardDate, additionalEmails } = req.body || {};
+  const { imageBase64, subject, periodString, additionalEmails } = req.body || {};
 
   if (!imageBase64) {
     return res.status(400).json({ error: 'Missing imageBase64 in request body.' });
@@ -28,24 +28,16 @@ module.exports = async function handler(req, res) {
   const imageBuffer = Buffer.from(base64Data, 'base64');
 
   // ── Build email
-  // dashboardDate normally comes from the browser (already the correct
-  // report date — see app.js emailSnapshot, which sends "today - 1" since
-  // the report always shows data as of the latest upload, one day behind
-  // today). This fallback only fires if that's missing, so it must apply
-  // the same "-1 day" here too, or the email would show a date one day
-  // ahead of what the attached snapshot actually says. Locked to
-  // Asia/Kolkata since toLocaleDateString('en-IN') alone only changes the
-  // digit *format*, not the timezone the date is computed in; without it,
-  // Vercel's UTC server clock would be off by a further day between
-  // 12:00 AM and 5:29 AM IST.
   const yesterdayIST = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const dateStr = dashboardDate || yesterdayIST.toLocaleDateString('en-GB', {
+  const fallbackDate = yesterdayIST.toLocaleDateString('en-GB', {
     timeZone: 'Asia/Kolkata',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric'
   });
-  const emailSubject = subject || `DALUCI Sales and Ads Report — ${dateStr}`;
+  
+  const finalPeriod = periodString || fallbackDate;
+  const emailSubject = subject || `DALUCI Sales and Ads Report — ${finalPeriod}`;
   
   // Combine env recipients with user-provided additional ones
   let allRecipients = MAIL_RECIPIENTS ? MAIL_RECIPIENTS.split(',') : [];
@@ -70,13 +62,13 @@ module.exports = async function handler(req, res) {
       <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 700px; margin: 0 auto;">
         <div style="background: #1a2332; color: #ffffff; padding: 20px 28px; border-radius: 10px 10px 0 0;">
           <h1 style="margin: 0; font-size: 22px; letter-spacing: 2px;">DALUCI</h1>
-          <p style="margin: 4px 0 0; font-size: 13px; color: #a0b4c8;">Sales and Ads Report · ${dateStr}</p>
+          <p style="margin: 4px 0 0; font-size: 13px; color: #a0b4c8;">Sales and Ads Report · ${finalPeriod}</p>
         </div>
         <div style="background: #f5f0e8; padding: 24px 28px; border-radius: 0 0 10px 10px;">
           <p style="font-size: 14px; color: #333; margin: 0 0 12px;">Hi Team,</p>
           <p style="font-size: 14px; color: #333; line-height: 1.6; margin: 0 0 12px;">
             Attached is the latest DALUCI sales and ads report — channel-wise performance, monthly
-            run-rate, and ad spend across all platforms, current as of ${dateStr}.
+            run-rate, and ad spend across all platforms, current for the period: <b>${finalPeriod}</b>.
           </p>
           <p style="font-size: 14px; color: #333; line-height: 1.6; margin: 0 0 12px;">
             Take a look and flag anything that needs follow-up.
@@ -90,7 +82,7 @@ module.exports = async function handler(req, res) {
     `,
     attachments: [
       {
-        filename: `daluci-dashboard-${dateStr.replace(/\//g, '-')}.png`,
+        filename: `daluci-dashboard-${finalPeriod.replace(/[\/\\]/g, '-').replace(/[^a-zA-Z0-9-]/g, '_')}.png`,
         content: imageBuffer,
         contentType: 'image/png',
         cid: 'dashboard-snapshot',

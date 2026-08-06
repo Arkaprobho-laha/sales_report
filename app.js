@@ -88,6 +88,7 @@
     els.dateFilter = document.getElementById('dateFilter');
     els.weekFilter = document.getElementById('weekFilter');
     els.monthFilter = document.getElementById('monthFilter');
+    els.quarterFilter = document.getElementById('quarterFilter');
     els.viewModeGroup = document.getElementById('viewModeGroup');
     els.changeTokenBtn = document.getElementById('changeTokenBtn');
     els.debugBtn = document.getElementById('debugBtn');
@@ -117,8 +118,12 @@
     els.reportRoot = document.getElementById('reportRoot');
     els.reportTitleCell = document.getElementById('reportTitleCell');
     els.channelTableBody = document.getElementById('channelTableBody');
+    els.runrateTableOuter = document.getElementById('runrateTableOuter');
     els.runrateTableBody = document.getElementById('runrateTableBody');
     els.adsTableBody = document.getElementById('adsTableBody');
+    els.adsMainHeader = document.getElementById('adsMainHeader');
+    els.adsBrandAll = document.getElementById('adsBrandAll');
+    els.adsBrandDal = document.getElementById('adsBrandDal');
     els.adsTableCol1 = document.getElementById('adsTableCol1');
     els.adsTableCol2 = document.getElementById('adsTableCol2');
     els.adsTableCol3 = document.getElementById('adsTableCol3');
@@ -180,6 +185,35 @@
        monthStart.setMonth(monthStart.getMonth() + 1);
      }
      if (lastMonthValue) els.monthFilter.value = lastMonthValue;
+     
+     // Quarters
+     els.quarterFilter.innerHTML = '';
+     let qStart = new Date(2026, 3, 1); // April 1, 2026
+     let lastQuarterValue = null;
+     while (qStart <= now) {
+       let qMonth = qStart.getMonth();
+       let qYear = qStart.getFullYear();
+       let fyStartYear = qMonth < 3 ? qYear - 1 : qYear;
+       let fyEndYear = (fyStartYear + 1).toString().slice(-2);
+       
+       let qNum;
+       if (qMonth === 3) qNum = 1;
+       else if (qMonth === 6) qNum = 2;
+       else if (qMonth === 9) qNum = 3;
+       else qNum = 4;
+
+       const option = document.createElement('option');
+       const val = qYear + '-' + pad2(qMonth + 1); // "2026-04"
+       option.value = val;
+       lastQuarterValue = val;
+       
+       let qEnd = new Date(qYear, qMonth + 3, 0);
+       option.textContent = 'Q' + qNum + ' FY' + fyStartYear.toString().slice(-2) + '-' + fyEndYear + ' (' + formatShortDate(qStart) + ' - ' + formatShortDate(qEnd) + ')';
+       els.quarterFilter.appendChild(option);
+       
+       qStart.setMonth(qStart.getMonth() + 3);
+     }
+     if (lastQuarterValue) els.quarterFilter.value = lastQuarterValue;
   }
   
   function formatShortDate(d) {
@@ -190,6 +224,7 @@
     els.dateFilter.hidden = state.viewMode !== 'daily';
     els.weekFilter.hidden = state.viewMode !== 'weekly';
     els.monthFilter.hidden = state.viewMode !== 'monthly';
+    els.quarterFilter.hidden = state.viewMode !== 'quarterly';
   }
 
   function wireEvents() {
@@ -199,6 +234,7 @@
     els.dateFilter.addEventListener('change', function () { loadDashboard(false); });
     els.weekFilter.addEventListener('change', function () { loadDashboard(false); });
     els.monthFilter.addEventListener('change', function () { loadDashboard(false); });
+    els.quarterFilter.addEventListener('change', function () { loadDashboard(false); });
     
     els.viewModeGroup.querySelectorAll('[data-view]').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
@@ -661,6 +697,29 @@
           reportTitle = 'DALUCI  |  SALES AND ADS REPORT (Month - ' + mStart.toLocaleString('default', { month: 'long', year: 'numeric' }) + ')';
           els.adsTableCol1.textContent = 'Monthly Ads (₹)';
           els.adsTableCol3.textContent = 'Monthly Ads (₹)';
+        } else if (state.viewMode === 'quarterly') {
+          const parts = els.quarterFilter.value.split('-');
+          const qYear = parseInt(parts[0], 10);
+          const qMonth = parseInt(parts[1], 10) - 1; // 2, 5, 8, 11 (Actually 3, 6, 9, 0 from val, so 2, 5, 8, -1? No, val is 04, 07, 10, 01 so qMonth is 3, 6, 9, 0)
+          const qStart = new Date(qYear, qMonth, 1);
+          const qEnd = new Date(qYear, qMonth + 3, 0);
+          
+          let fyStartYear = qMonth < 3 ? qYear - 1 : qYear;
+          let fyEndYear = (fyStartYear + 1).toString().slice(-2);
+          let qNum;
+          if (qMonth === 3) qNum = 1;
+          else if (qMonth === 6) qNum = 2;
+          else if (qMonth === 9) qNum = 3;
+          else qNum = 4;
+          
+          fetchStartDate = qStart;
+          fetchEndDate = qEnd;
+          headerDate = qEnd;
+          dashboardDate = qEnd;
+          
+          reportTitle = 'DALUCI  |  SALES AND ADS REPORT (Quarter - Q' + qNum + ' FY' + fyStartYear.toString().slice(-2) + '-' + fyEndYear + ')';
+          els.adsTableCol1.textContent = 'Quarterly Ads (₹)';
+          els.adsTableCol3.textContent = 'Quarterly Ads (₹)';
         }
 
         els.reportTitleCell.textContent = reportTitle;
@@ -682,6 +741,15 @@
           // Daluci Website data is real-time; force it to use the dashboard header date
           uploadMap['Daluci_Website'] = headerDate;
         }
+
+        els.runrateTableOuter.hidden = (state.viewMode === 'quarterly');
+        
+        const hideMonthAds = (state.viewMode === 'monthly' || state.viewMode === 'quarterly');
+        els.adsTableCol2.hidden = hideMonthAds;
+        els.adsTableCol4.hidden = hideMonthAds;
+        els.adsBrandAll.colSpan = hideMonthAds ? 1 : 2;
+        els.adsBrandDal.colSpan = hideMonthAds ? 1 : 2;
+        els.adsMainHeader.colSpan = hideMonthAds ? 3 : 5;
 
         // ── LAZY LOAD: show shell + Table 4 + skeletons for Tables 1–3 NOW ──
         // (Title is already set correctly above)
@@ -1105,24 +1173,28 @@
         }
       }
 
+      const hideMonthAds = (state.viewMode === 'monthly' || state.viewMode === 'quarterly');
+
       rows.push(
         '<tr>' +
         '<td>' + escapeHtml(label) + '</td>' +
         '<td>' + fmtAds(yAll) + '</td>' +
-        '<td>' + fmtAds(mAll) + '</td>' +
+        (hideMonthAds ? '' : '<td>' + fmtAds(mAll) + '</td>') +
         '<td>' + fmtAds(yDaluci) + '</td>' +
-        '<td>' + fmtAds(mDaluci) + '</td>' +
+        (hideMonthAds ? '' : '<td>' + fmtAds(mDaluci) + '</td>') +
         '</tr>'
       );
     });
+
+    const hideMonthAds = (state.viewMode === 'monthly' || state.viewMode === 'quarterly');
 
     rows.push(
       '<tr class="total-row">' +
       '<td>Total</td>' +
       '<td>' + fmtAds(totalYAll) + '</td>' +
-      '<td>' + fmtAds(totalMAll) + '</td>' +
+      (hideMonthAds ? '' : '<td>' + fmtAds(totalMAll) + '</td>') +
       '<td>' + fmtAds(totalYDaluci) + '</td>' +
-      '<td>' + fmtAds(totalMDaluci) + '</td>' +
+      (hideMonthAds ? '' : '<td>' + fmtAds(totalMDaluci) + '</td>') +
       '</tr>'
     );
 
@@ -1200,6 +1272,8 @@
     var SR = '<tr class="skel-row"><td colspan="99"><div class="skel-bar"></div></td></tr>';
     els.channelTableBody.innerHTML = Array(7).fill(SR).join('');
     els.runrateTableBody.innerHTML = Array(3).fill(SR).join('');
+    
+    // Skeleton rows for Ads Table must match the dynamic colspan
     els.adsTableBody.innerHTML = Array(5).fill(SR).join('');
     // Upload dates is NOT skeletonised — it renders lazily from first API call
   }
@@ -1363,17 +1437,15 @@
       btn.innerHTML = origHTML;
     }
 
-    // Get the report's date string for the email subject/body.
-    // IMPORTANT: this must match the dashboard's own header date, which is
-    // always "today - 1" (see loadDashboard: headerDate = addDays(dashboardDate, -1)),
-    // because the report reflects the latest *uploaded* data, not today.
-    // Using plain "today" here made the email subject/body show one day
-    // ahead of what the attached snapshot actually says. Reuse the same
-    // addDays(new Date(), -1) so this always agrees with the on-screen title.
-    var reportDate = els.dateFilter && els.dateFilter.value
-      ? new Date(els.dateFilter.value.split('-')[0], els.dateFilter.value.split('-')[1] - 1, els.dateFilter.value.split('-')[2])
-      : addDays(new Date(), -1);
-    var dateStr = pad2(reportDate.getDate()) + '/' + pad2(reportDate.getMonth() + 1) + '/' + reportDate.getFullYear();
+    // Extract the exact period string from the report title (e.g. "05/08/2026" or "Month - August 2026")
+    var fullTitle = els.reportTitleCell.textContent;
+    var periodString = fullTitle.replace('DALUCI  |  SALES AND ADS REPORT (', '').slice(0, -1);
+    // Remove invisible characters or extra spaces just in case
+    periodString = periodString.replace('DALUCI&nbsp;&nbsp;|&nbsp;&nbsp;SALES AND ADS REPORT (', '').trim();
+    if (periodString === '—' || periodString === '') {
+      var d = addDays(new Date(), -1);
+      periodString = pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear();
+    }
 
     captureSnapshot('png')
       .then(function (dataUrl) {
@@ -1383,7 +1455,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             imageBase64: dataUrl,
-            dashboardDate: dateStr,
+            periodString: periodString,
             additionalEmails: additionalEmails
           })
         });
