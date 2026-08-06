@@ -378,6 +378,12 @@ body {
   color: var(--t1);
 }
 
+.btn-cb.active {
+  background: var(--t1);
+  color: #ffffff;
+  border-color: var(--t1);
+}
+
 .btn-cb-cyan {
   background: var(--s1);
   border-color: rgba(80, 100, 200, 0.35);

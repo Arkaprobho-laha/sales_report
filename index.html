@@ -54,11 +54,18 @@
           <div id="refreshIndicator" class="refresh-indicator" hidden>
             <div class="mini-spinner"></div><span>Refreshing…</span>
           </div>
+          <div class="cb-btn-group" id="viewModeGroup">
+            <button class="btn-cb active" data-view="daily">Daily</button>
+            <button class="btn-cb" data-view="weekly">Weekly</button>
+            <button class="btn-cb" data-view="monthly">Monthly</button>
+          </div>
           <!-- Transparent button card -->
           <div class="cb-btn-group">
             <input type="file" id="meeshoUploadInput" accept=".xlsx" hidden />
             <button id="meeshoUploadBtn" class="btn-cb" title="Upload Meesho Ads Report">📄 Meesho Ads</button>
             <input type="date" id="dateFilter" class="btn-cb" title="Select Date" />
+            <select id="weekFilter" class="btn-cb" title="Select Week" hidden></select>
+            <select id="monthFilter" class="btn-cb" title="Select Month" hidden></select>
             <button id="snapshotBtn" class="btn-cb btn-cb-amber" title="Download tables 1–3 as image">📸
               Snapshot</button>
             <button id="emailBtn" class="btn-cb btn-cb-green" title="Email dashboard snapshot to team">📧 Email</button>
@@ -185,10 +192,10 @@
                 </tr>
                 <tr class="col-row">
                   <th>Channel</th>
-                  <th>Yesterday Ads (₹)</th>
-                  <th>This Month Ads (₹)</th>
-                  <th>Yesterday Ads (₹)</th>
-                  <th>This Month Ads (₹)</th>
+                  <th id="adsTableCol1">Yesterday Ads (₹)</th>
+                  <th id="adsTableCol2">This Month Ads (₹)</th>
+                  <th id="adsTableCol3">Yesterday Ads (₹)</th>
+                  <th id="adsTableCol4">This Month Ads (₹)</th>
                 </tr>
               </thead>
               <tbody id="adsTableBody"></tbody>
@@ -202,11 +209,12 @@
           <table class="mis-table" id="uploadDatesTable">
             <thead>
               <tr class="section-row">
-                <th colspan="2">Latest Data Upload Date per Platform</th>
+                <th colspan="3">Latest Data Upload Date per Platform</th>
               </tr>
               <tr class="col-row">
                 <th>Platform</th>
-                <th>Last Upload Date</th>
+                <th>Sales Data</th>
+                <th>Ads Data</th>
               </tr>
             </thead>
             <tbody id="uploadDatesTableBody"></tbody>

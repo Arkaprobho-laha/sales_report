@@ -52,13 +52,15 @@
   const state = {
     token: '',
     debugLog: [],
-    debugPage: 0   // 0-based index of the currently displayed page
+    debugPage: 0,   // 0-based index of the currently displayed page
+    viewMode: 'daily'
   };
 
   const els = {};
 
   document.addEventListener('DOMContentLoaded', function () {
     cacheEls();
+    initializePickers();
     wireEvents();
     tryResumeSession();
   });
@@ -84,6 +86,9 @@
     els.emailBtn = document.getElementById('emailBtn');
     els.refreshBtn = document.getElementById('refreshBtn');
     els.dateFilter = document.getElementById('dateFilter');
+    els.weekFilter = document.getElementById('weekFilter');
+    els.monthFilter = document.getElementById('monthFilter');
+    els.viewModeGroup = document.getElementById('viewModeGroup');
     els.changeTokenBtn = document.getElementById('changeTokenBtn');
     els.debugBtn = document.getElementById('debugBtn');
     els.disconnectBtn = document.getElementById('disconnectBtn');
@@ -114,6 +119,10 @@
     els.channelTableBody = document.getElementById('channelTableBody');
     els.runrateTableBody = document.getElementById('runrateTableBody');
     els.adsTableBody = document.getElementById('adsTableBody');
+    els.adsTableCol1 = document.getElementById('adsTableCol1');
+    els.adsTableCol2 = document.getElementById('adsTableCol2');
+    els.adsTableCol3 = document.getElementById('adsTableCol3');
+    els.adsTableCol4 = document.getElementById('adsTableCol4');
     els.uploadDatesTableBody = document.getElementById('uploadDatesTableBody');
     els.snapshotArea = document.getElementById('snapshotArea');
     // Debug
@@ -127,15 +136,79 @@
   }
 
   // =====================================================================
-  // WIRE EVENTS
+  // INITIALIZE PICKERS & WIRE EVENTS
   // =====================================================================
+
+  const EPOCH_DATE = new Date(2026, 3, 1); // April 1, 2026
+
+  function initializePickers() {
+     const now = new Date();
+     
+     // Weeks
+     els.weekFilter.innerHTML = '';
+     let weekStart = new Date(EPOCH_DATE);
+     let weekIndex = 1;
+     let lastWeekValue = null;
+     while (weekStart <= now) {
+       let weekEnd = new Date(weekStart);
+       weekEnd.setDate(weekEnd.getDate() + 6);
+       
+       const option = document.createElement('option');
+       const val = weekStart.getTime();
+       option.value = val;
+       lastWeekValue = val;
+       option.textContent = 'Week ' + weekIndex + ' (' + formatShortDate(weekStart) + ' - ' + formatShortDate(weekEnd) + ')';
+       els.weekFilter.appendChild(option);
+       
+       weekStart.setDate(weekStart.getDate() + 7);
+       weekIndex++;
+     }
+     if (lastWeekValue) els.weekFilter.value = lastWeekValue; // default to latest
+     
+     // Months
+     els.monthFilter.innerHTML = '';
+     let monthStart = new Date(EPOCH_DATE);
+     let lastMonthValue = null;
+     while (monthStart <= now) {
+       const option = document.createElement('option');
+       const val = monthStart.getFullYear() + '-' + pad2(monthStart.getMonth() + 1);
+       option.value = val;
+       lastMonthValue = val;
+       option.textContent = monthStart.toLocaleString('default', { month: 'long', year: 'numeric' });
+       els.monthFilter.appendChild(option);
+       
+       monthStart.setMonth(monthStart.getMonth() + 1);
+     }
+     if (lastMonthValue) els.monthFilter.value = lastMonthValue;
+  }
+  
+  function formatShortDate(d) {
+    return d.toLocaleString('default', { month: 'short', day: 'numeric' });
+  }
+
+  function updateFiltersVisibility() {
+    els.dateFilter.hidden = state.viewMode !== 'daily';
+    els.weekFilter.hidden = state.viewMode !== 'weekly';
+    els.monthFilter.hidden = state.viewMode !== 'monthly';
+  }
 
   function wireEvents() {
     els.connectBtn.addEventListener('click', onConnectClick);
     els.disconnectBtn.addEventListener('click', onDisconnect);
     els.refreshBtn.addEventListener('click', function () { loadDashboard(false); });
     els.dateFilter.addEventListener('change', function () { loadDashboard(false); });
+    els.weekFilter.addEventListener('change', function () { loadDashboard(false); });
+    els.monthFilter.addEventListener('change', function () { loadDashboard(false); });
     
+    els.viewModeGroup.querySelectorAll('[data-view]').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+         els.viewModeGroup.querySelectorAll('[data-view]').forEach(function(b) { b.classList.remove('active'); });
+         e.currentTarget.classList.add('active');
+         state.viewMode = e.currentTarget.getAttribute('data-view');
+         updateFiltersVisibility();
+         loadDashboard(false);
+      });
+    });
     els.meeshoUploadBtn.addEventListener('click', function () {
       els.meeshoUploadInput.click();
     });
@@ -539,20 +612,70 @@
         let dashboardDate = new Date();
         let headerDate = addDays(dashboardDate, -1);
         let isDateFiltered = false;
-        if (els.dateFilter && els.dateFilter.value) {
-          const parts = els.dateFilter.value.split('-');
-          headerDate = new Date(parts[0], parts[1] - 1, parts[2]);
-          dashboardDate = headerDate; // So that firstOfMonth(dashboardDate) is correct
-          isDateFiltered = true;
+        
+        let fetchStartDate = null;
+        let fetchEndDate = null;
+
+        let reportTitle = '';
+
+        if (state.viewMode === 'daily') {
+          if (els.dateFilter && els.dateFilter.value) {
+            const parts = els.dateFilter.value.split('-');
+            headerDate = new Date(parts[0], parts[1] - 1, parts[2]);
+            dashboardDate = headerDate; // So that firstOfMonth(dashboardDate) is correct
+            isDateFiltered = true;
+          }
+          fetchStartDate = headerDate;
+          fetchEndDate = headerDate;
+          reportTitle = 'DALUCI  |  SALES AND ADS REPORT (' + formatDMY(headerDate) + ')';
+          els.adsTableCol1.textContent = 'Yesterday Ads (₹)';
+          els.adsTableCol3.textContent = 'Yesterday Ads (₹)';
+        } else if (state.viewMode === 'weekly') {
+          const selectedMs = parseInt(els.weekFilter.value, 10);
+          const wStart = new Date(selectedMs);
+          const wEnd = new Date(wStart);
+          wEnd.setDate(wEnd.getDate() + 6);
+          
+          fetchStartDate = wStart;
+          fetchEndDate = wEnd;
+          headerDate = wEnd;
+          dashboardDate = wEnd;
+          
+          const msDiff = selectedMs - EPOCH_DATE.getTime();
+          const weekNum = Math.floor(msDiff / (7 * 24 * 60 * 60 * 1000)) + 1;
+          reportTitle = 'DALUCI  |  SALES AND ADS REPORT (Week - ' + weekNum + ' (' + formatDMY(wStart) + ' to ' + formatDMY(wEnd) + '))';
+          els.adsTableCol1.textContent = 'Weekly Ads (₹)';
+          els.adsTableCol3.textContent = 'Weekly Ads (₹)';
+        } else if (state.viewMode === 'monthly') {
+          const parts = els.monthFilter.value.split('-');
+          const mYear = parseInt(parts[0], 10);
+          const mMonth = parseInt(parts[1], 10) - 1;
+          const mStart = new Date(mYear, mMonth, 1);
+          const mEnd = new Date(mYear, mMonth + 1, 0);
+          
+          fetchStartDate = mStart;
+          fetchEndDate = mEnd;
+          headerDate = mEnd;
+          dashboardDate = mEnd;
+          
+          reportTitle = 'DALUCI  |  SALES AND ADS REPORT (Month - ' + mStart.toLocaleString('default', { month: 'long', year: 'numeric' }) + ')';
+          els.adsTableCol1.textContent = 'Monthly Ads (₹)';
+          els.adsTableCol3.textContent = 'Monthly Ads (₹)';
         }
 
-        if (isDateFiltered) {
+        els.reportTitleCell.textContent = reportTitle;
+
+        if (isDateFiltered || state.viewMode !== 'daily') {
           PLATFORMS.forEach(function (p) {
             const actualLastUpload = uploadMap[p.key];
-            if (actualLastUpload && headerDate > actualLastUpload) {
-              uploadMap[p.key] = actualLastUpload;
+            if (state.viewMode === 'daily') {
+              if (actualLastUpload && fetchEndDate > actualLastUpload) {
+                uploadMap[p.key] = actualLastUpload;
+              } else {
+                uploadMap[p.key] = headerDate;
+              }
             } else {
-              uploadMap[p.key] = headerDate;
+              uploadMap[p.key] = fetchEndDate;
             }
           });
         } else {
@@ -561,8 +684,7 @@
         }
 
         // ── LAZY LOAD: show shell + Table 4 + skeletons for Tables 1–3 NOW ──
-        els.reportTitleCell.textContent =
-          'DALUCI  |  SALES AND ADS REPORT (' + formatDMY(headerDate) + ')';
+        // (Title is already set correctly above)
 
         // Table 4 renders immediately (upload dates are already in hand)
         // Table 4 always shows the ALL-TIME latest dates, ignoring the date filter.
@@ -577,18 +699,19 @@
         }
 
         return Promise.all([
-          fetchAllPlatformData(uploadMap, dashboardDate, headerDate),
-          apiGet('/category-runrate', { month: headerDate.getMonth() + 1, year: headerDate.getFullYear() }).catch(function (err) {
+          fetchAllPlatformData(uploadMap, fetchStartDate, fetchEndDate, state.viewMode, originalUploadMap),
+          apiGet('/category-runrate', { month: fetchEndDate.getMonth() + 1, year: fetchEndDate.getFullYear() }).catch(function (err) {
             console.warn('Failed to fetch overall category-runrate:', err);
             return null;
           }),
-          apiGet('/category-runrate', { month: headerDate.getMonth() + 1, year: headerDate.getFullYear(), brand: 'Daluci' }).catch(function (err) {
+          apiGet('/category-runrate', { month: fetchEndDate.getMonth() + 1, year: fetchEndDate.getFullYear(), brand: 'Daluci' }).catch(function (err) {
             console.warn('Failed to fetch Daluci category-runrate:', err);
             return null;
           })
         ]).then(function (results) {
           return {
             uploadMap: uploadMap,
+            originalUploadMap: originalUploadMap,
             dashboardDate: dashboardDate,
             perPlatform: results[0],
             categoryRunrateOverall: results[1],
@@ -601,6 +724,7 @@
         renderChannelTable(ctx);
         renderRunrateTable(ctx);
         renderAdsTable(ctx);
+        renderUploadDatesTable(ctx);
 
         els.loadState.hidden = true;
         els.refreshIndicator.hidden = true;
@@ -630,14 +754,16 @@
   // FETCH ALL PLATFORM DATA
   // =====================================================================
 
-  function fetchAllPlatformData(uploadMap, dashboardDate, headerDate) {
-    const monthStart = toISODate(firstOfMonth(dashboardDate));
+  function fetchAllPlatformData(uploadMap, fetchStartDate, fetchEndDate, viewMode, originalUploadMap) {
+    const monthStart = toISODate(firstOfMonth(fetchEndDate));
+    const pStart = toISODate(fetchStartDate);
 
     const calls = PLATFORMS.map(function (p) {
       const lastUpload = uploadMap[p.key];
-      const yDate = lastUpload ? toISODate(lastUpload) : null;
+      const pEndDate = lastUpload ? toISODate(lastUpload) : null;
+      const pActualStart = (viewMode === 'daily') ? pEndDate : pStart;
 
-      if (!yDate) {
+      if (!pEndDate) {
         return Promise.resolve({
           platform: p,
           lastUpload: null,
@@ -649,77 +775,120 @@
       }
 
       let pSales = Promise.all([
-        apiGet(SALES_TOTALS_PATH, { startDate: yDate, endDate: yDate, platform: p.key }).then(function (r) { return readTotals(r && r.data, false); }),
-        apiGet(SALES_TOTALS_PATH, { startDate: yDate, endDate: yDate, platform: p.key, brand: BRAND_FILTER }).then(function (r) { return readTotals(r && r.data, true); }),
-        apiGet(SALES_TOTALS_PATH, { startDate: monthStart, endDate: yDate, platform: p.key }).then(function (r) { return readTotals(r && r.data, false); }),
-        apiGet(SALES_TOTALS_PATH, { startDate: monthStart, endDate: yDate, platform: p.key, brand: BRAND_FILTER }).then(function (r) { return readTotals(r && r.data, true); })
+        apiGet(SALES_TOTALS_PATH, { startDate: pActualStart, endDate: pEndDate, platform: p.key }).then(function (r) { return readTotals(r && r.data, false); }),
+        apiGet(SALES_TOTALS_PATH, { startDate: pActualStart, endDate: pEndDate, platform: p.key, brand: BRAND_FILTER }).then(function (r) { return readTotals(r && r.data, true); }),
+        apiGet(SALES_TOTALS_PATH, { startDate: monthStart, endDate: pEndDate, platform: p.key }).then(function (r) { return readTotals(r && r.data, false); }),
+        apiGet(SALES_TOTALS_PATH, { startDate: monthStart, endDate: pEndDate, platform: p.key, brand: BRAND_FILTER }).then(function (r) { return readTotals(r && r.data, true); })
       ]).then(function (res) {
         return { yAll: res[0], yDal: res[1], mAll: res[2], mDal: res[3] };
       });
+
+      function searchAdsSingle(dateObj, attempts, isDaluci) {
+        if (attempts <= 0) return Promise.resolve({ date: null, yAds: 0, mAds: 0 });
+        const dStr = toISODate(dateObj);
+        return apiGet(SALES_TOTALS_PATH, { startDate: dStr, endDate: dStr, platform: p.key, brand: isDaluci ? BRAND_FILTER : undefined })
+          .then(function (r) {
+            const totals = readTotals(r && r.data, isDaluci);
+            const hasData = r && r.data && Object.keys(r.data).length > 0;
+            
+            const lastSalesDate = originalUploadMap ? originalUploadMap[p.key] : uploadMap[p.key];
+            let isRealDate = false;
+            if (lastSalesDate) {
+               isRealDate = dateObj.getTime() <= lastSalesDate.getTime();
+            }
+
+            if (totals.ads > 0 || (hasData && isRealDate)) {
+              const adsMonthStart = toISODate(firstOfMonth(dateObj));
+              return apiGet(SALES_TOTALS_PATH, { startDate: adsMonthStart, endDate: dStr, platform: p.key, brand: isDaluci ? BRAND_FILTER : undefined })
+                .then(function (mr) {
+                  const mTotals = readTotals(mr && mr.data, isDaluci);
+                  return { date: dateObj, yAds: totals.ads, mAds: mTotals.ads };
+                });
+            }
+            return searchAdsSingle(addDays(dateObj, -1), attempts - 1, isDaluci);
+          });
+      }
+
+      let realAdsDatePromise;
+      if (ADS_EXCLUDED_KEYS.indexOf(p.key) !== -1) {
+        realAdsDatePromise = Promise.resolve(null);
+      } else {
+        realAdsDatePromise = searchAdsSingle(new Date(), 7, false).then(function(r) { return r.date; });
+      }
 
       let pAds;
       if (ADS_EXCLUDED_KEYS.indexOf(p.key) !== -1) {
         pAds = Promise.resolve({ date: null, yAllAds: 0, yDalAds: 0, mAllAds: 0, mDalAds: 0 });
       } else {
-        function searchAdsSingle(dateObj, attempts, isDaluci) {
-          if (attempts <= 0) return Promise.resolve({ date: null, yAds: 0, mAds: 0 });
-          const dStr = toISODate(dateObj);
-          return apiGet(SALES_TOTALS_PATH, { startDate: dStr, endDate: dStr, platform: p.key, brand: isDaluci ? BRAND_FILTER : undefined })
-            .then(function (r) {
-              const totals = readTotals(r && r.data, isDaluci);
-              if (totals.ads > 0) {
-                const adsMonthStart = toISODate(firstOfMonth(dateObj));
-                return apiGet(SALES_TOTALS_PATH, { startDate: adsMonthStart, endDate: dStr, platform: p.key, brand: isDaluci ? BRAND_FILTER : undefined })
-                  .then(function (mr) {
-                    const mTotals = readTotals(mr && mr.data, isDaluci);
-                    return { date: dateObj, yAds: totals.ads, mAds: mTotals.ads };
-                  });
-              }
-              return searchAdsSingle(addDays(dateObj, -1), attempts - 1, isDaluci);
-            });
+        if (viewMode === 'daily') {
+          pAds = Promise.all([
+            searchAdsSingle(fetchEndDate, 5, false),
+            searchAdsSingle(fetchEndDate, 5, true)
+          ]).then(function (ab) {
+            const all = ab[0];
+            const dal = ab[1];
+            let finalDate = all.date || dal.date || null;
+            if (all.date && dal.date && all.date > dal.date) finalDate = all.date;
+            if (all.date && dal.date && dal.date > all.date) finalDate = dal.date;
+            
+            let yAllAdsToDisplay = all.yAds;
+            let yDalAdsToDisplay = dal.yAds;
+            let mAllAdsToDisplay = all.mAds;
+            let mDalAdsToDisplay = dal.mAds;
+            
+            if (all.date && finalDate && all.date.getTime() !== finalDate.getTime()) {
+               yAllAdsToDisplay = 0;
+               mAllAdsToDisplay = 0;
+            }
+            if (dal.date && finalDate && dal.date.getTime() !== finalDate.getTime()) {
+               yDalAdsToDisplay = 0;
+               mDalAdsToDisplay = 0;
+            }
+            
+            return {
+              date: finalDate,
+              yAllAds: yAllAdsToDisplay,
+              yDalAds: yDalAdsToDisplay,
+              mAllAds: mAllAdsToDisplay,
+              mDalAds: mDalAdsToDisplay
+            };
+          });
+        } else {
+          pAds = pSales.then(function(salesRes) {
+            return {
+              date: null,
+              yAllAds: salesRes.yAll.ads,
+              yDalAds: salesRes.yDal.ads,
+              mAllAds: salesRes.mAll.ads,
+              mDalAds: salesRes.mDal.ads
+            };
+          });
         }
-        
-        pAds = Promise.all([
-          searchAdsSingle(headerDate, 5, false),
-          searchAdsSingle(headerDate, 5, true)
-        ]).then(function (ab) {
-          const all = ab[0];
-          const dal = ab[1];
-          let finalDate = all.date || dal.date || null;
-          if (all.date && dal.date && all.date > dal.date) finalDate = all.date;
-          if (all.date && dal.date && dal.date > all.date) finalDate = dal.date;
-          
-          let yAllAdsToDisplay = all.yAds;
-          let yDalAdsToDisplay = dal.yAds;
-          let mAllAdsToDisplay = all.mAds;
-          let mDalAdsToDisplay = dal.mAds;
-          
-          if (all.date && finalDate && all.date.getTime() !== finalDate.getTime()) {
-             yAllAdsToDisplay = 0;
-             mAllAdsToDisplay = 0;
-          }
-          if (dal.date && finalDate && dal.date.getTime() !== finalDate.getTime()) {
-             yDalAdsToDisplay = 0;
-             mDalAdsToDisplay = 0;
-          }
-          
-          return {
-            date: finalDate,
-            yAllAds: yAllAdsToDisplay,
-            yDalAds: yDalAdsToDisplay,
-            mAllAds: mAllAdsToDisplay,
-            mDalAds: mDalAdsToDisplay
-          };
-        });
       }
 
-      return Promise.all([pSales, pAds]).then(function (res) {
+      return Promise.all([pSales, pAds, realAdsDatePromise]).then(function (res) {
         const sales = res[0];
         const ads = res[1];
+        let realAdsDate = res[2];
+
+        // Before July 2026, Ads will not show any data
+        const july2026 = new Date(2026, 6, 1);
+        if (fetchEndDate < july2026) {
+          ads.yAllAds = 0;
+          ads.yDalAds = 0;
+          ads.mAllAds = 0;
+          ads.mDalAds = 0;
+          ads.date = null;
+        }
+        if (realAdsDate && realAdsDate < july2026) {
+          realAdsDate = null;
+        }
+
         return {
           platform: p,
           lastUpload: lastUpload,
-          adsDate: ads.date || lastUpload,
+          adsDate: viewMode === 'daily' ? (ads.date || lastUpload) : (realAdsDate || lastUpload),
+          adsDateRaw: viewMode === 'daily' ? ads.date : realAdsDate,
           yesterday: { 
             all: { order: sales.yAll.order, gmv: sales.yAll.gmv, ads: ads.yAllAds }, 
             daluci: { order: sales.yDal.order, gmv: sales.yDal.gmv, ads: ads.yDalAds } 
@@ -846,7 +1015,7 @@
         ? (daluci.gmv / totalDaluciGmv * 100) : 0;
 
       let label = p.platform.label;
-      if (p.lastUpload) {
+      if (state.viewMode === 'daily' && p.lastUpload) {
         label += ' - (' + formatDMY(p.lastUpload) + ')';
       }
 
@@ -928,10 +1097,12 @@
       totalYDaluci += yDaluci; totalMDaluci += mDaluci;
 
       let label = p.platform.label;
-      if (p.adsDate) {
-        label += ' - (' + formatDMY(p.adsDate) + ')';
-      } else if (p.lastUpload) {
-        label += ' - (' + formatDMY(p.lastUpload) + ')';
+      if (state.viewMode === 'daily') {
+        if (p.adsDate) {
+          label += ' - (' + formatDMY(p.adsDate) + ')';
+        } else if (p.lastUpload) {
+          label += ' - (' + formatDMY(p.lastUpload) + ')';
+        }
       }
 
       rows.push(
@@ -960,12 +1131,33 @@
 
   function renderUploadDatesTable(ctx) {
     const rows = [];
+    const mapToUse = ctx.originalUploadMap || ctx.uploadMap;
     PLATFORMS.forEach(function (p) {
-      const d = ctx.uploadMap[p.key];
+      const d = mapToUse[p.key];
+      let adsCell = '<div class="skel-bar" style="width:60px"></div>';
+
+      if (ADS_EXCLUDED_KEYS.indexOf(p.key) !== -1) {
+        adsCell = '<span class="na-cell">N/A</span>';
+      } else if (ctx.perPlatform) {
+        let pData = null;
+        for (let i = 0; i < ctx.perPlatform.length; i++) {
+          if (ctx.perPlatform[i].platform.key === p.key) {
+            pData = ctx.perPlatform[i];
+            break;
+          }
+        }
+        if (pData && pData.adsDateRaw) {
+          adsCell = formatDMY(pData.adsDateRaw);
+        } else {
+          adsCell = '<span class="na-cell">—</span>';
+        }
+      }
+
       rows.push(
         '<tr>' +
         '<td>' + escapeHtml(p.label) + '</td>' +
         '<td>' + (d ? formatDMY(d) : '<span class="na-cell">—</span>') + '</td>' +
+        '<td>' + adsCell + '</td>' +
         '</tr>'
       );
     });
@@ -982,7 +1174,9 @@
       a.getDate() === b.getDate();
   }
 
-  function fmtInt(n) { return Math.round(n).toString(); }
+  function fmtInt(n) { 
+    return Math.round(n) === 0 ? '<span class="na-cell">-</span>' : Math.round(n).toString(); 
+  }
 
   function fmtAds(n) {
     return n > 0
