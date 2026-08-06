@@ -909,12 +909,14 @@
       // Skip Amazon Direct & DALUCI Website
       if (ADS_EXCLUDED_KEYS.indexOf(p.platform.key) !== -1) return;
 
-      const yAll = p.yesterday.all.ads;
-      const mAll = p.monthToDate.all.ads;
+      let yAll = p.yesterday.all.ads;
+      let mAll = p.monthToDate.all.ads;
 
       // Zepto & Blinkit: DALUCI Brand column mirrors All Brands
       let yDaluci, mDaluci;
       if (ADS_ALL_SAME_AS_DALUCI.indexOf(p.platform.key) !== -1) {
+        yAll = Math.max(yAll, p.yesterday.daluci.ads);
+        mAll = Math.max(mAll, p.monthToDate.daluci.ads);
         yDaluci = yAll;
         mDaluci = mAll;
       } else {
