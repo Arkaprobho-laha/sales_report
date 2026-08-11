@@ -595,10 +595,18 @@
 
         const uploadMap = {};
         const originalUploadMap = {};
+        const meeshoAdsUploadDate = {};
         (uploadResp && uploadResp.data ? uploadResp.data : []).forEach(function (row) {
           const d = parseAPIDate(row.lastUploadDate);
           uploadMap[row.platform] = d;
           originalUploadMap[row.platform] = d;
+          
+          // Read the actual ads upload date natively provided by the API
+          if (row.ads && row.ads.actualLastUpload) {
+            meeshoAdsUploadDate[row.platform] = parseAPIDate(row.ads.actualLastUpload);
+          } else if (row.adsUploadDate) { // Fallback just in case the API uses a flat field
+            meeshoAdsUploadDate[row.platform] = parseAPIDate(row.adsUploadDate);
+          }
         });
         originalUploadMap['Daluci_Website'] = addDays(new Date(), -1);
 
@@ -713,7 +721,7 @@
 
         // Table 4 renders immediately (upload dates are already in hand)
         // Table 4 always shows the ALL-TIME latest dates, ignoring the date filter.
-        renderUploadDatesTable({ uploadMap: originalUploadMap, dashboardDate: dashboardDate });
+        renderUploadDatesTable({ uploadMap: originalUploadMap, dashboardDate: dashboardDate, meeshoAdsUploadDate: meeshoAdsUploadDate });
 
         // Tables 1–3 show shimmer skeletons until platform data arrives
         showTableSkeletons();
@@ -724,7 +732,7 @@
         }
 
         return Promise.all([
-          fetchAllPlatformData(uploadMap, fetchStartDate, fetchEndDate, state.viewMode, originalUploadMap),
+          fetchAllPlatformData(uploadMap, fetchStartDate, fetchEndDate, state.viewMode, originalUploadMap, meeshoAdsUploadDate),
           apiGet('/category-runrate', { month: fetchEndDate.getMonth() + 1, year: fetchEndDate.getFullYear() }).catch(function (err) {
             console.warn('Failed to fetch overall category-runrate:', err);
             return null;
@@ -737,6 +745,7 @@
           return {
             uploadMap: uploadMap,
             originalUploadMap: originalUploadMap,
+            meeshoAdsUploadDate: meeshoAdsUploadDate,
             dashboardDate: dashboardDate,
             perPlatform: results[0],
             categoryRunrateOverall: results[1],
@@ -779,7 +788,7 @@
   // FETCH ALL PLATFORM DATA
   // =====================================================================
 
-  function fetchAllPlatformData(uploadMap, fetchStartDate, fetchEndDate, viewMode, originalUploadMap) {
+  function fetchAllPlatformData(uploadMap, fetchStartDate, fetchEndDate, viewMode, originalUploadMap, meeshoAdsUploadDate) {
     const monthStart = toISODate(firstOfMonth(fetchEndDate));
     const pStart = toISODate(fetchStartDate);
 
@@ -814,15 +823,8 @@
         return apiGet(SALES_TOTALS_PATH, { startDate: dStr, endDate: dStr, platform: p.key, brand: isDaluci ? BRAND_FILTER : undefined })
           .then(function (r) {
             const totals = readTotals(r && r.data, isDaluci);
-            const hasData = r && r.data && Object.keys(r.data).length > 0;
-            
-            const lastSalesDate = originalUploadMap ? originalUploadMap[p.key] : uploadMap[p.key];
-            let isRealDate = false;
-            if (lastSalesDate) {
-               isRealDate = dateObj.getTime() <= lastSalesDate.getTime();
-            }
 
-            if (totals.ads > 0 || (hasData && isRealDate)) {
+            if (totals.ads > 0) {
               const adsMonthStart = toISODate(firstOfMonth(dateObj));
               return apiGet(SALES_TOTALS_PATH, { startDate: adsMonthStart, endDate: dStr, platform: p.key, brand: isDaluci ? BRAND_FILTER : undefined })
                 .then(function (mr) {
@@ -909,11 +911,17 @@
           realAdsDate = null;
         }
 
+        // Use the native ads date if available (more accurate than heuristic search)
+        var effectiveAdsDateRaw = viewMode === 'daily' ? ads.date : realAdsDate;
+        if (meeshoAdsUploadDate && meeshoAdsUploadDate[p.key]) {
+          effectiveAdsDateRaw = meeshoAdsUploadDate[p.key];
+        }
+
         return {
           platform: p,
           lastUpload: lastUpload,
-          adsDate: viewMode === 'daily' ? (ads.date || lastUpload) : (realAdsDate || lastUpload),
-          adsDateRaw: viewMode === 'daily' ? ads.date : realAdsDate,
+          adsDate: viewMode === 'daily' ? (ads.date || lastUpload) : (effectiveAdsDateRaw || lastUpload),
+          adsDateRaw: effectiveAdsDateRaw,
           yesterday: { 
             all: { order: sales.yAll.order, gmv: sales.yAll.gmv, ads: ads.yAllAds }, 
             daluci: { order: sales.yDal.order, gmv: sales.yDal.gmv, ads: ads.yDalAds } 
@@ -1184,6 +1192,9 @@
         } else {
           adsCell = '<span class="na-cell">—</span>';
         }
+      } else if (ctx.meeshoAdsUploadDate && ctx.meeshoAdsUploadDate[p.key]) {
+        // Show the actual ads date from API even before platform data loads
+        adsCell = formatDMY(ctx.meeshoAdsUploadDate[p.key]);
       }
 
       rows.push(
