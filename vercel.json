@@ -9,10 +9,6 @@
       "destination": "/api/last-upload-dates"
     },
     {
-      "source": "/api/v1/upload-meesho-ads",
-      "destination": "/api/upload-meesho-ads"
-    },
-    {
       "source": "/api/v1/:match*",
       "destination": "https://daluci.digital.dhineu.com/bff/v1/:match*"
     }
