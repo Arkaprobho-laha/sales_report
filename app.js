@@ -8,6 +8,7 @@
   const API_BASE = '/api/v1/dashboard-bff';
   const LAST_UPLOAD_DATES_PATH = '/sales/last-upload-dates';
   const SALES_TOTALS_PATH = '/sales-details-totals';
+  const RETURN_TOTALS_PATH = '/return-details-totals';
 
   const PLATFORMS = [
     { key: 'Amazon', label: 'Amazon' },
@@ -130,6 +131,8 @@
     els.adsTableCol3 = document.getElementById('adsTableCol3');
     els.adsTableCol4 = document.getElementById('adsTableCol4');
     els.uploadDatesTableBody = document.getElementById('uploadDatesTableBody');
+    els.returnTableOuter = document.getElementById('returnTableOuter');
+    els.returnTableBody = document.getElementById('returnTableBody');
     els.snapshotArea = document.getElementById('snapshotArea');
     // Debug
     els.debugDrawer = document.getElementById('debugDrawer');
@@ -708,6 +711,8 @@
         }
 
         els.runrateTableOuter.hidden = (state.viewMode === 'quarterly');
+        // Return under Sales table: only show in monthly view
+        els.returnTableOuter.hidden = (state.viewMode !== 'monthly');
         
         const hideMonthAds = (state.viewMode === 'monthly' || state.viewMode === 'quarterly');
         els.adsTableCol2.hidden = hideMonthAds;
@@ -731,6 +736,20 @@
           els.reportRoot.hidden = false;
         }
 
+        // Fetch return data only for monthly view
+        var returnDataPromise = Promise.resolve(null);
+        if (state.viewMode === 'monthly') {
+          var rStart = toISODate(fetchStartDate);
+          var rEnd   = toISODate(fetchEndDate);
+          // Amazon = Amazon + Amazon_Flex summed
+          returnDataPromise = Promise.all([
+            apiGet(RETURN_TOTALS_PATH, { startDate: rStart, endDate: rEnd, platform: 'Amazon' }).catch(function () { return null; }),
+            apiGet(RETURN_TOTALS_PATH, { startDate: rStart, endDate: rEnd, platform: 'Amazon_Flex' }).catch(function () { return null; }),
+            apiGet(RETURN_TOTALS_PATH, { startDate: rStart, endDate: rEnd, platform: 'Flipkart' }).catch(function () { return null; }),
+            apiGet(RETURN_TOTALS_PATH, { startDate: rStart, endDate: rEnd, platform: 'Meesho' }).catch(function () { return null; })
+          ]);
+        }
+
         return Promise.all([
           fetchAllPlatformData(uploadMap, fetchStartDate, fetchEndDate, state.viewMode, originalUploadMap, meeshoAdsUploadDate),
           apiGet('/category-runrate', { month: fetchEndDate.getMonth() + 1, year: fetchEndDate.getFullYear() }).catch(function (err) {
@@ -740,7 +759,8 @@
           apiGet('/category-runrate', { month: fetchEndDate.getMonth() + 1, year: fetchEndDate.getFullYear(), brand: 'Daluci' }).catch(function (err) {
             console.warn('Failed to fetch Daluci category-runrate:', err);
             return null;
-          })
+          }),
+          returnDataPromise
         ]).then(function (results) {
           return {
             uploadMap: uploadMap,
@@ -749,7 +769,8 @@
             dashboardDate: dashboardDate,
             perPlatform: results[0],
             categoryRunrateOverall: results[1],
-            categoryRunrateDaluci: results[2]
+            categoryRunrateDaluci: results[2],
+            returnData: results[3]  // [amazonResp, amazonFlexResp, flipkartResp, meeshoResp] or null
           };
         });
       })
@@ -758,6 +779,7 @@
         renderChannelTable(ctx);
         renderRunrateTable(ctx);
         renderAdsTable(ctx);
+        renderReturnTable(ctx);
         renderUploadDatesTable(ctx);
 
         els.loadState.hidden = true;
@@ -1029,7 +1051,111 @@
     renderChannelTable(ctx);
     renderRunrateTable(ctx);
     renderAdsTable(ctx);
+    renderReturnTable(ctx);
     renderUploadDatesTable(ctx);
+  }
+
+  // =====================================================================
+  // RENDER RETURN UNDER SALES TABLE  (monthly view only)
+  // =====================================================================
+
+  function readReturnData(resp) {
+    var d = (resp && resp.data) ? resp.data : {};
+    return {
+      totalReturns:   numOrZero(d.totalReturns),
+      totalQuantity:  numOrZero(d.totalQuantity),
+      returnQuantity: numOrZero(d.returnQuantity),
+      rtoQuantity:    numOrZero(d.rtoQuantity)
+    };
+  }
+
+  function addReturnData(a, b) {
+    return {
+      totalReturns:   a.totalReturns   + b.totalReturns,
+      totalQuantity:  a.totalQuantity  + b.totalQuantity,
+      returnQuantity: a.returnQuantity + b.returnQuantity,
+      rtoQuantity:    a.rtoQuantity    + b.rtoQuantity
+    };
+  }
+
+  function zeroReturn() {
+    return { totalReturns: 0, totalQuantity: 0, returnQuantity: 0, rtoQuantity: 0 };
+  }
+
+  function renderReturnTable(ctx) {
+    // Only render in monthly mode
+    if (state.viewMode !== 'monthly' || !ctx.returnData) {
+      return;
+    }
+
+    // Helper: get monthly ALL BRANDS orders for a platform key from perPlatform
+    function getSalesOrders(key) {
+      if (!ctx.perPlatform) return 0;
+      for (var i = 0; i < ctx.perPlatform.length; i++) {
+        if (ctx.perPlatform[i].platform.key === key) {
+          return ctx.perPlatform[i].monthToDate.all.order || 0;
+        }
+      }
+      return 0;
+    }
+
+    // returnData = [amazonResp, amazonFlexResp, flipkartResp, meeshoResp]
+    var rd = ctx.returnData;
+    var amazon   = addReturnData(readReturnData(rd[0]), readReturnData(rd[1])); // Amazon + Amazon_Flex
+    var flipkart = readReturnData(rd[2]);
+    var meesho   = readReturnData(rd[3]);
+
+    // Sales orders per channel (denominator for Return %)
+    var amazonSales   = getSalesOrders('Amazon');
+    var flipkartSales = getSalesOrders('Flipkart');
+    var meeshoSales   = getSalesOrders('Meesho');
+
+    function fmtReturnPct(returns, sales) {
+      if (!sales || sales === 0) return '<span class="na-cell">-</span>';
+      return (returns / sales * 100).toFixed(2) + '%';
+    }
+
+    var BLANK4 = '<td></td><td></td><td></td><td></td>';
+
+    var channels = [
+      { label: 'Amazon',   data: amazon,   sales: amazonSales   },
+      { label: 'Flipkart', data: flipkart, sales: flipkartSales },
+      { label: 'Meesho',   data: meesho,   sales: meeshoSales   }
+    ];
+
+    var totalsReturn = channels.reduce(function (acc, ch) {
+      return addReturnData(acc, ch.data);
+    }, zeroReturn());
+    var totalSales = amazonSales + flipkartSales + meeshoSales;
+
+    var rows = [];
+    channels.forEach(function (ch) {
+      var d = ch.data;
+      rows.push(
+        '<tr>' +
+        '<td>' + escapeHtml(ch.label) + '</td>' +
+        '<td>' + fmtInt(d.totalReturns)                       + '</td>' +
+        '<td>' + fmtReturnPct(d.totalReturns, ch.sales)       + '</td>' +
+        '<td>' + fmtInt(d.returnQuantity)                     + '</td>' +
+        '<td>' + fmtInt(d.rtoQuantity)                        + '</td>' +
+        // DALUCI Brand columns: blank (data not available from API yet)
+        BLANK4 +
+        '</tr>'
+      );
+    });
+
+    rows.push(
+      '<tr class="total-row">' +
+      '<td>Total</td>' +
+      '<td>' + fmtInt(totalsReturn.totalReturns)                    + '</td>' +
+      '<td>' + fmtReturnPct(totalsReturn.totalReturns, totalSales)  + '</td>' +
+      '<td>' + fmtInt(totalsReturn.returnQuantity)                  + '</td>' +
+      '<td>' + fmtInt(totalsReturn.rtoQuantity)                     + '</td>' +
+      BLANK4 +
+      '</tr>'
+    );
+
+    setEditableRows(els.returnTableBody, rows.join(''));
   }
 
   function renderChannelTable(ctx) {
@@ -1247,6 +1373,10 @@
     
     // Skeleton rows for Ads Table must match the dynamic colspan
     els.adsTableBody.innerHTML = Array(5).fill(SR).join('');
+    // Return table skeleton (only shown in monthly mode)
+    if (!els.returnTableOuter.hidden) {
+      els.returnTableBody.innerHTML = Array(4).fill(SR).join('');
+    }
     // Upload dates is NOT skeletonised — it renders lazily from first API call
   }
 

@@ -9,6 +9,10 @@
       "destination": "/api/last-upload-dates"
     },
     {
+      "source": "/api/v1/dashboard-bff/return-details-totals",
+      "destination": "/api/return-details-totals"
+    },
+    {
       "source": "/api/v1/:match*",
       "destination": "https://daluci.digital.dhineu.com/bff/v1/:match*"
     }
