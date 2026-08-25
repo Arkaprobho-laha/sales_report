@@ -137,6 +137,7 @@
     els.adsTableCol3 = document.getElementById('adsTableCol3');
     els.adsTableCol4 = document.getElementById('adsTableCol4');
     els.uploadDatesTableBody = document.getElementById('uploadDatesTableBody');
+    els.uploadDatesTableContainer = document.getElementById('uploadDatesTableContainer');
     els.returnTableOuter = document.getElementById('returnTableOuter');
     els.returnTableBody = document.getElementById('returnTableBody');
     els.generateBtn = document.getElementById('generateBtn');
@@ -288,7 +289,7 @@
 
     // Auto-refresh once a day if left open 24/7
     var lastCheckedDay = new Date().getDate();
-    setInterval(function() {
+    setInterval(function () {
       var currentDay = new Date().getDate();
       if (currentDay !== lastCheckedDay) {
         lastCheckedDay = currentDay;
@@ -913,23 +914,23 @@
       var y = currentStartLocal.getFullYear();
       var m = currentStartLocal.getMonth();
       var d = currentStartLocal.getDate();
-      
+
       var chunkEndLocal;
       // 15-day chunks: 1st to 15th, and 16th to end of month
       if (d <= 15) {
         chunkEndLocal = new Date(y, m, 15);
       } else {
-        chunkEndLocal = new Date(y, m + 1, 0); 
+        chunkEndLocal = new Date(y, m + 1, 0);
       }
-      
+
       if (chunkEndLocal > endLocal) {
         chunkEndLocal = endLocal;
       }
-      
+
       var q = { startDate: toISODate(currentStartLocal), endDate: toISODate(chunkEndLocal), platform: platform };
       if (brand) q.brand = brand;
       queries.push(q);
-      
+
       currentStartLocal = new Date(chunkEndLocal.getFullYear(), chunkEndLocal.getMonth(), chunkEndLocal.getDate() + 1);
     }
 
@@ -1474,8 +1475,35 @@
   }
 
   function renderUploadDatesTable(ctx) {
-    const rows = [];
     const mapToUse = ctx.originalUploadMap || ctx.uploadMap;
+
+    // Find the absolute latest upload date across all platforms
+    let maxUploadDate = 0;
+    PLATFORMS.forEach(function (p) {
+      if (mapToUse[p.key]) {
+        let dTime = new Date(mapToUse[p.key]).getTime();
+        if (dTime > maxUploadDate) maxUploadDate = dTime;
+      }
+    });
+
+    // If the selected period completely ended before the latest data upload date,
+    // it means we are viewing a past period and the data is 100% complete.
+    // So we hide the "Latest Upload Dates" table entirely.
+    if (maxUploadDate > 0) {
+      let endOfFetch = new Date(fetchEndDate);
+      endOfFetch.setHours(23, 59, 59, 999);
+      let refDate = new Date(maxUploadDate);
+      refDate.setHours(0, 0, 0, 0);
+
+      if (endOfFetch < refDate) {
+        els.uploadDatesTableContainer.hidden = true;
+        return;
+      }
+    }
+
+    els.uploadDatesTableContainer.hidden = false;
+    const rows = [];
+
     PLATFORMS.forEach(function (p) {
       const d = mapToUse[p.key];
       let adsCell = '<div class="skel-bar" style="width:60px"></div>';
@@ -1486,8 +1514,8 @@
         // Start with a spinner. We will launch a background search if we don't have it natively.
         adsCell = '<div class="skel-bar ads-date-spinner" id="ads-date-' + p.key + '" style="width:60px"></div>';
 
-        // Launch background search to find the latest ads date
         if (d && !document.getElementById('ads-date-' + p.key + '-searching')) {
+          // Launch background search to find the latest ads date for the current/latest period
           setTimeout(function () {
             findLatestAdsDateBackground(p.key, d);
           }, 100);
