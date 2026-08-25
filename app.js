@@ -1490,7 +1490,7 @@
     // it means we are viewing a past period and the data is 100% complete.
     // So we hide the "Latest Upload Dates" table entirely.
     if (maxUploadDate > 0) {
-      let endOfFetch = new Date(fetchEndDate);
+      let endOfFetch = new Date(ctx.dashboardDate);
       endOfFetch.setHours(23, 59, 59, 999);
       let refDate = new Date(maxUploadDate);
       refDate.setHours(0, 0, 0, 0);
