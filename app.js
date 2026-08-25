@@ -285,6 +285,19 @@
     els.closeDebugBtn.addEventListener('click', function () { els.debugDrawer.hidden = true; });
     els.debugPrevBtn.addEventListener('click', function () { goToDebugPage(state.debugPage - 1); });
     els.debugNextBtn.addEventListener('click', function () { goToDebugPage(state.debugPage + 1); });
+
+    // Auto-refresh once a day if left open 24/7
+    var lastCheckedDay = new Date().getDate();
+    setInterval(function() {
+      var currentDay = new Date().getDate();
+      if (currentDay !== lastCheckedDay) {
+        lastCheckedDay = currentDay;
+        // Trigger a click on the refresh button if report is visible
+        if (!els.refreshBtn.disabled && !els.reportRoot.hidden) {
+          els.refreshBtn.click();
+        }
+      }
+    }, 60 * 60 * 1000); // Check every hour
   }
 
   // =====================================================================
@@ -617,6 +630,9 @@
   // =====================================================================
 
   function loadDashboard(fromConnect) {
+    // Clear the ads search cache so that refresh fetches the actual latest data
+    adsDateSearchCache = {};
+
     const isFirstLoad = els.reportRoot.hidden;
     hideErrorBanner();
     state.debugLog = [];
