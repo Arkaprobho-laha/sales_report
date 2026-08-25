@@ -33,12 +33,18 @@
 
   function readTotals(data, brandFiltered) {
     data = data || {};
+
+    // Fallbacks for various possible key names that the backend might return
+    const adsVal = brandFiltered
+      ? numOrZero(data.totalAdsSpend ?? data.totalAdSpend ?? data.adSpend ?? data.adsSpend ?? 0)
+      : numOrZero(data.totalAdsSpendAll ?? data.totalAdSpendAll ?? data.totalAdsSpend ?? data.totalAdSpend ?? data.adSpend ?? data.adsSpend ?? 0);
+
     return {
       order: numOrZero(data.unitsSold),
       gmv: numOrZero(data.totalSales),
-      ads: brandFiltered
-        ? numOrZero(data.totalAdsSpend)
-        : numOrZero(data.totalAdsSpendAll != null ? data.totalAdsSpendAll : data.totalAdsSpend)
+      ads: adsVal,
+      returnedUnits: numOrZero(data.returnedUnits),
+      returnRate: numOrZero(data.returnRate)
     };
   }
 
@@ -133,6 +139,8 @@
     els.uploadDatesTableBody = document.getElementById('uploadDatesTableBody');
     els.returnTableOuter = document.getElementById('returnTableOuter');
     els.returnTableBody = document.getElementById('returnTableBody');
+    els.generateBtn = document.getElementById('generateBtn');
+    els.generatePrompt = document.getElementById('generatePrompt');
     els.snapshotArea = document.getElementById('snapshotArea');
     // Debug
     els.debugDrawer = document.getElementById('debugDrawer');
@@ -151,75 +159,75 @@
   const EPOCH_DATE = new Date(2026, 3, 1); // April 1, 2026
 
   function initializePickers() {
-     const now = new Date();
-     
-     // Weeks
-     els.weekFilter.innerHTML = '';
-     let weekStart = new Date(EPOCH_DATE);
-     let weekIndex = 1;
-     let lastWeekValue = null;
-     while (weekStart <= now) {
-       let weekEnd = new Date(weekStart);
-       weekEnd.setDate(weekEnd.getDate() + 6);
-       
-       const option = document.createElement('option');
-       const val = weekStart.getTime();
-       option.value = val;
-       lastWeekValue = val;
-       option.textContent = 'Week ' + weekIndex + ' (' + formatShortDate(weekStart) + ' - ' + formatShortDate(weekEnd) + ')';
-       els.weekFilter.appendChild(option);
-       
-       weekStart.setDate(weekStart.getDate() + 7);
-       weekIndex++;
-     }
-     if (lastWeekValue) els.weekFilter.value = lastWeekValue; // default to latest
-     
-     // Months
-     els.monthFilter.innerHTML = '';
-     let monthStart = new Date(EPOCH_DATE);
-     let lastMonthValue = null;
-     while (monthStart <= now) {
-       const option = document.createElement('option');
-       const val = monthStart.getFullYear() + '-' + pad2(monthStart.getMonth() + 1);
-       option.value = val;
-       lastMonthValue = val;
-       option.textContent = monthStart.toLocaleString('default', { month: 'long', year: 'numeric' });
-       els.monthFilter.appendChild(option);
-       
-       monthStart.setMonth(monthStart.getMonth() + 1);
-     }
-     if (lastMonthValue) els.monthFilter.value = lastMonthValue;
-     
-     // Quarters
-     els.quarterFilter.innerHTML = '';
-     let qStart = new Date(2026, 3, 1); // April 1, 2026
-     let lastQuarterValue = null;
-     while (qStart <= now) {
-       let qMonth = qStart.getMonth();
-       let qYear = qStart.getFullYear();
-       let fyStartYear = qMonth < 3 ? qYear - 1 : qYear;
-       let fyEndYear = (fyStartYear + 1).toString().slice(-2);
-       
-       let qNum;
-       if (qMonth === 3) qNum = 1;
-       else if (qMonth === 6) qNum = 2;
-       else if (qMonth === 9) qNum = 3;
-       else qNum = 4;
+    const now = new Date();
 
-       const option = document.createElement('option');
-       const val = qYear + '-' + pad2(qMonth + 1); // "2026-04"
-       option.value = val;
-       lastQuarterValue = val;
-       
-       let qEnd = new Date(qYear, qMonth + 3, 0);
-       option.textContent = 'Q' + qNum + ' FY' + fyStartYear.toString().slice(-2) + '-' + fyEndYear + ' (' + formatShortDate(qStart) + ' - ' + formatShortDate(qEnd) + ')';
-       els.quarterFilter.appendChild(option);
-       
-       qStart.setMonth(qStart.getMonth() + 3);
-     }
-     if (lastQuarterValue) els.quarterFilter.value = lastQuarterValue;
+    // Weeks
+    els.weekFilter.innerHTML = '';
+    let weekStart = new Date(EPOCH_DATE);
+    let weekIndex = 1;
+    let lastWeekValue = null;
+    while (weekStart <= now) {
+      let weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+
+      const option = document.createElement('option');
+      const val = weekStart.getTime();
+      option.value = val;
+      lastWeekValue = val;
+      option.textContent = 'Week ' + weekIndex + ' (' + formatShortDate(weekStart) + ' - ' + formatShortDate(weekEnd) + ')';
+      els.weekFilter.appendChild(option);
+
+      weekStart.setDate(weekStart.getDate() + 7);
+      weekIndex++;
+    }
+    if (lastWeekValue) els.weekFilter.value = lastWeekValue; // default to latest
+
+    // Months
+    els.monthFilter.innerHTML = '';
+    let monthStart = new Date(EPOCH_DATE);
+    let lastMonthValue = null;
+    while (monthStart <= now) {
+      const option = document.createElement('option');
+      const val = monthStart.getFullYear() + '-' + pad2(monthStart.getMonth() + 1);
+      option.value = val;
+      lastMonthValue = val;
+      option.textContent = monthStart.toLocaleString('default', { month: 'long', year: 'numeric' });
+      els.monthFilter.appendChild(option);
+
+      monthStart.setMonth(monthStart.getMonth() + 1);
+    }
+    if (lastMonthValue) els.monthFilter.value = lastMonthValue;
+
+    // Quarters
+    els.quarterFilter.innerHTML = '';
+    let qStart = new Date(2026, 3, 1); // April 1, 2026
+    let lastQuarterValue = null;
+    while (qStart <= now) {
+      let qMonth = qStart.getMonth();
+      let qYear = qStart.getFullYear();
+      let fyStartYear = qMonth < 3 ? qYear - 1 : qYear;
+      let fyEndYear = (fyStartYear + 1).toString().slice(-2);
+
+      let qNum;
+      if (qMonth === 3) qNum = 1;
+      else if (qMonth === 6) qNum = 2;
+      else if (qMonth === 9) qNum = 3;
+      else qNum = 4;
+
+      const option = document.createElement('option');
+      const val = qYear + '-' + pad2(qMonth + 1); // "2026-04"
+      option.value = val;
+      lastQuarterValue = val;
+
+      let qEnd = new Date(qYear, qMonth + 3, 0);
+      option.textContent = 'Q' + qNum + ' FY' + fyStartYear.toString().slice(-2) + '-' + fyEndYear + ' (' + formatShortDate(qStart) + ' - ' + formatShortDate(qEnd) + ')';
+      els.quarterFilter.appendChild(option);
+
+      qStart.setMonth(qStart.getMonth() + 3);
+    }
+    if (lastQuarterValue) els.quarterFilter.value = lastQuarterValue;
   }
-  
+
   function formatShortDate(d) {
     return d.toLocaleString('default', { month: 'short', day: 'numeric' });
   }
@@ -234,19 +242,26 @@
   function wireEvents() {
     els.connectBtn.addEventListener('click', onConnectClick);
     els.disconnectBtn.addEventListener('click', onDisconnect);
-    els.refreshBtn.addEventListener('click', function () { loadDashboard(false); });
-    els.dateFilter.addEventListener('change', function () { loadDashboard(false); });
-    els.weekFilter.addEventListener('change', function () { loadDashboard(false); });
-    els.monthFilter.addEventListener('change', function () { loadDashboard(false); });
-    els.quarterFilter.addEventListener('change', function () { loadDashboard(false); });
-    
-    els.viewModeGroup.querySelectorAll('[data-view]').forEach(function(btn) {
-      btn.addEventListener('click', function(e) {
-         els.viewModeGroup.querySelectorAll('[data-view]').forEach(function(b) { b.classList.remove('active'); });
-         e.currentTarget.classList.add('active');
-         state.viewMode = e.currentTarget.getAttribute('data-view');
-         updateFiltersVisibility();
-         loadDashboard(false);
+    els.refreshBtn.addEventListener('click', function () {
+      els.generatePrompt.hidden = true;
+      loadDashboard(false);
+    });
+    // Filters are now passive — no auto-fetch on change
+    // (user must click Generate)
+
+    els.generateBtn.addEventListener('click', function () {
+      els.generatePrompt.hidden = true;
+      // First load if report hasn't been shown yet, refresh otherwise
+      loadDashboard(els.reportRoot.hidden);
+    });
+
+    els.viewModeGroup.querySelectorAll('[data-view]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        els.viewModeGroup.querySelectorAll('[data-view]').forEach(function (b) { b.classList.remove('active'); });
+        e.currentTarget.classList.add('active');
+        state.viewMode = e.currentTarget.getAttribute('data-view');
+        updateFiltersVisibility();
+        // No auto-fetch — user clicks Generate
       });
     });
 
@@ -315,7 +330,7 @@
         // Use only the shared global token
         state.token = globalToken;
         enterConnectedState();
-        loadDashboard(true);
+        // ⬇ No auto-load — user must click Generate
       }
       // else: nothing in global store — authForm is already visible
     });
@@ -331,7 +346,7 @@
     pushGlobalToken(state.token);   // save globally
     hideLoginError();
     enterConnectedState();
-    loadDashboard(true);
+    // ⬇ No auto-load — user must click Generate
   }
 
   // Local-only disconnect: this device stops using the token and goes back
@@ -343,6 +358,8 @@
     state.token = '';
     els.reportRoot.hidden = true;
     els.tokenInput.value = '';
+    // Show the generate prompt again for next session
+    els.generatePrompt.hidden = false;
     enterDisconnectedState();
   }
 
@@ -369,7 +386,7 @@
     els.newTokenError.hidden = true;
     els.changeTokenModal.hidden = true;
     updateTokenPreview();
-    loadDashboard(true);
+    // ⬇ No auto-load — user must click Generate
   }
 
   // Called when the API returns 401/403 — clears saved token and goes back
@@ -391,6 +408,8 @@
     els.connBar.hidden = false;
     els.changeTokenModal.hidden = true;
     els.dashContent.hidden = false;
+    // Show the prompt if no report has been generated yet
+    els.generatePrompt.hidden = !els.reportRoot.hidden;
     updateTokenPreview();
   }
 
@@ -437,6 +456,8 @@
   // API
   // =====================================================================
 
+  const inFlightRequests = new Map();
+
   function apiGet(path, params) {
     const qs = params
       ? '?' + Object.keys(params)
@@ -447,7 +468,19 @@
     const url = API_BASE + path + qs;
     const startedAt = Date.now();
 
-    return fetch(url, {
+    if (inFlightRequests.has(url)) {
+      // Deduplicate! Deep clone to prevent unintended reference sharing.
+      return inFlightRequests.get(url).then(function (json) {
+        if (json == null) return json;
+        // Mark as cached in debug log if needed (for debug panel)
+        const entry = { url: url, status: '(Cached)', latency: 0, body: json };
+        state.debugLog.push(entry);
+        renderDebugEntry(entry);
+        return JSON.parse(JSON.stringify(json));
+      });
+    }
+
+    const reqPromise = fetch(url, {
       method: 'GET',
       headers: { 'Accept': '*/*', 'Authorization': state.token }
     }).then(function (res) {
@@ -470,6 +503,15 @@
         }
         return json;
       });
+    }).finally(function () {
+      inFlightRequests.delete(url);
+    });
+
+    inFlightRequests.set(url, reqPromise);
+
+    return reqPromise.then(function (json) {
+      if (json == null) return json;
+      return JSON.parse(JSON.stringify(json));
     });
   }
 
@@ -603,7 +645,7 @@
           const d = parseAPIDate(row.lastUploadDate);
           uploadMap[row.platform] = d;
           originalUploadMap[row.platform] = d;
-          
+
           // Read the actual ads upload date natively provided by the API
           if (row.ads && row.ads.actualLastUpload) {
             meeshoAdsUploadDate[row.platform] = parseAPIDate(row.ads.actualLastUpload);
@@ -616,7 +658,7 @@
         let dashboardDate = new Date();
         let headerDate = addDays(dashboardDate, -1);
         let isDateFiltered = false;
-        
+
         let fetchStartDate = null;
         let fetchEndDate = null;
 
@@ -639,12 +681,12 @@
           const wStart = new Date(selectedMs);
           const wEnd = new Date(wStart);
           wEnd.setDate(wEnd.getDate() + 6);
-          
+
           fetchStartDate = wStart;
           fetchEndDate = wEnd;
           headerDate = wEnd;
           dashboardDate = wEnd;
-          
+
           const msDiff = selectedMs - EPOCH_DATE.getTime();
           const weekNum = Math.floor(msDiff / (7 * 24 * 60 * 60 * 1000)) + 1;
           reportTitle = 'DALUCI  |  SALES AND ADS REPORT (Week - ' + weekNum + ' (' + formatDMY(wStart) + ' to ' + formatDMY(wEnd) + '))';
@@ -656,12 +698,12 @@
           const mMonth = parseInt(parts[1], 10) - 1;
           const mStart = new Date(mYear, mMonth, 1);
           const mEnd = new Date(mYear, mMonth + 1, 0);
-          
+
           fetchStartDate = mStart;
           fetchEndDate = mEnd;
           headerDate = mEnd;
           dashboardDate = mEnd;
-          
+
           reportTitle = 'DALUCI  |  SALES AND ADS REPORT (Month - ' + mStart.toLocaleString('default', { month: 'long', year: 'numeric' }) + ')';
           els.adsTableCol1.textContent = 'Monthly Ads (₹)';
           els.adsTableCol3.textContent = 'Monthly Ads (₹)';
@@ -671,7 +713,7 @@
           const qMonth = parseInt(parts[1], 10) - 1; // 2, 5, 8, 11 (Actually 3, 6, 9, 0 from val, so 2, 5, 8, -1? No, val is 04, 07, 10, 01 so qMonth is 3, 6, 9, 0)
           const qStart = new Date(qYear, qMonth, 1);
           const qEnd = new Date(qYear, qMonth + 3, 0);
-          
+
           let fyStartYear = qMonth < 3 ? qYear - 1 : qYear;
           let fyEndYear = (fyStartYear + 1).toString().slice(-2);
           let qNum;
@@ -679,12 +721,12 @@
           else if (qMonth === 6) qNum = 2;
           else if (qMonth === 9) qNum = 3;
           else qNum = 4;
-          
+
           fetchStartDate = qStart;
           fetchEndDate = qEnd;
           headerDate = qEnd;
           dashboardDate = qEnd;
-          
+
           reportTitle = 'DALUCI  |  SALES AND ADS REPORT (Quarter - Q' + qNum + ' FY' + fyStartYear.toString().slice(-2) + '-' + fyEndYear + ')';
           els.adsTableCol1.textContent = 'Quarterly Ads (₹)';
           els.adsTableCol3.textContent = 'Quarterly Ads (₹)';
@@ -711,9 +753,9 @@
         }
 
         els.runrateTableOuter.hidden = (state.viewMode === 'quarterly');
-        // Return under Sales table: only show in monthly view
-        els.returnTableOuter.hidden = (state.viewMode !== 'monthly');
-        
+        // Return under Sales table: only show in monthly and quarterly views
+        els.returnTableOuter.hidden = (state.viewMode !== 'monthly' && state.viewMode !== 'quarterly');
+
         const hideMonthAds = (state.viewMode === 'monthly' || state.viewMode === 'quarterly');
         els.adsTableCol2.hidden = hideMonthAds;
         els.adsTableCol4.hidden = hideMonthAds;
@@ -736,30 +778,46 @@
           els.reportRoot.hidden = false;
         }
 
-        // Fetch return data only for monthly view
+        // Fetch return data only for monthly and quarterly views
         var returnDataPromise = Promise.resolve(null);
-        if (state.viewMode === 'monthly') {
+        if (state.viewMode === 'monthly' || state.viewMode === 'quarterly') {
           var rStart = toISODate(fetchStartDate);
-          var rEnd   = toISODate(fetchEndDate);
+          var rEnd = toISODate(fetchEndDate);
           // Amazon = Amazon + Amazon_Flex summed
           returnDataPromise = Promise.all([
-            apiGet(RETURN_TOTALS_PATH, { startDate: rStart, endDate: rEnd, platform: 'Amazon' }).catch(function () { return null; }),
-            apiGet(RETURN_TOTALS_PATH, { startDate: rStart, endDate: rEnd, platform: 'Amazon_Flex' }).catch(function () { return null; }),
-            apiGet(RETURN_TOTALS_PATH, { startDate: rStart, endDate: rEnd, platform: 'Flipkart' }).catch(function () { return null; }),
-            apiGet(RETURN_TOTALS_PATH, { startDate: rStart, endDate: rEnd, platform: 'Meesho' }).catch(function () { return null; })
-          ]);
+            fetchChunkedReturns(rStart, rEnd, 'Amazon'),
+            fetchChunkedReturns(rStart, rEnd, 'Amazon_Flex'),
+            fetchChunkedReturns(rStart, rEnd, 'Flipkart'),
+            fetchChunkedReturns(rStart, rEnd, 'Meesho'),
+            fetchChunkedReturns(rStart, rEnd, 'Amazon', 'Daluci'),
+            fetchChunkedReturns(rStart, rEnd, 'Amazon_Flex', 'Daluci'),
+            fetchChunkedReturns(rStart, rEnd, 'Flipkart', 'Daluci'),
+            fetchChunkedReturns(rStart, rEnd, 'Meesho', 'Daluci')
+          ]).then(function (res) {
+            return {
+              all: res.slice(0, 4),
+              daluci: res.slice(4, 8)
+            };
+          });
+        }
+
+        var runrateOverallPromise = Promise.resolve(null);
+        var runrateDaluciPromise = Promise.resolve(null);
+        if (state.viewMode !== 'quarterly') {
+          runrateOverallPromise = apiGet('/category-runrate', { month: fetchEndDate.getMonth() + 1, year: fetchEndDate.getFullYear() }).catch(function (err) {
+            console.warn('Failed to fetch overall category-runrate:', err);
+            return null;
+          });
+          runrateDaluciPromise = apiGet('/category-runrate', { month: fetchEndDate.getMonth() + 1, year: fetchEndDate.getFullYear(), brand: 'Daluci' }).catch(function (err) {
+            console.warn('Failed to fetch Daluci category-runrate:', err);
+            return null;
+          });
         }
 
         return Promise.all([
           fetchAllPlatformData(uploadMap, fetchStartDate, fetchEndDate, state.viewMode, originalUploadMap, meeshoAdsUploadDate),
-          apiGet('/category-runrate', { month: fetchEndDate.getMonth() + 1, year: fetchEndDate.getFullYear() }).catch(function (err) {
-            console.warn('Failed to fetch overall category-runrate:', err);
-            return null;
-          }),
-          apiGet('/category-runrate', { month: fetchEndDate.getMonth() + 1, year: fetchEndDate.getFullYear(), brand: 'Daluci' }).catch(function (err) {
-            console.warn('Failed to fetch Daluci category-runrate:', err);
-            return null;
-          }),
+          runrateOverallPromise,
+          runrateDaluciPromise,
           returnDataPromise
         ]).then(function (results) {
           return {
@@ -810,6 +868,64 @@
   // FETCH ALL PLATFORM DATA
   // =====================================================================
 
+  // Global queue to synchronize chunked API calls so they don't hit the server simultaneously
+  var chunkedApiQueue = Promise.resolve();
+
+  function queuedApiGet(path, params) {
+    var p = chunkedApiQueue.then(function () {
+      return apiGet(path, params);
+    });
+    chunkedApiQueue = p.catch(function () { });
+    return p;
+  }
+
+  function fetchChunkedSales(startDateStr, endDateStr, platform, brand) {
+    var partsStart = startDateStr.split('-');
+    var currentStartLocal = new Date(partsStart[0], partsStart[1] - 1, partsStart[2]);
+    var partsEnd = endDateStr.split('-');
+    var endLocal = new Date(partsEnd[0], partsEnd[1] - 1, partsEnd[2]);
+    var days = (endLocal - currentStartLocal) / (1000 * 60 * 60 * 24);
+
+    // Only chunk for Amazon + Daluci. Other API calls can handle the full quarter
+    if (days <= 35 || platform !== 'Amazon' || brand !== 'Daluci') {
+      var q = { startDate: startDateStr, endDate: endDateStr, platform: platform };
+      if (brand) q.brand = brand;
+      return apiGet(SALES_TOTALS_PATH, q).then(function (r) { return readTotals(r && r.data, !!brand); });
+    }
+
+    var queries = [];
+    while (currentStartLocal <= endLocal) {
+      var currentEndLocal = new Date(currentStartLocal.getFullYear(), currentStartLocal.getMonth() + 1, 0);
+      if (currentEndLocal > endLocal) currentEndLocal = endLocal;
+      var q = { startDate: toISODate(currentStartLocal), endDate: toISODate(currentEndLocal), platform: platform };
+      if (brand) q.brand = brand;
+      queries.push(q);
+      currentStartLocal = new Date(currentStartLocal.getFullYear(), currentStartLocal.getMonth() + 1, 1);
+    }
+
+    var promises = queries.map(function (q) {
+      return queuedApiGet(SALES_TOTALS_PATH, q).then(function (r) { return readTotals(r && r.data, !!brand); });
+    });
+
+    return Promise.all(promises).then(function (results) {
+      var acc = zeroTotals();
+      for (var i = 0; i < results.length; i++) {
+        acc.order += results[i].order;
+        acc.gmv += results[i].gmv;
+        acc.ads += results[i].ads;
+        acc.returnedUnits += results[i].returnedUnits;
+      }
+      return acc;
+    });
+  }
+
+  function fetchChunkedReturns(startDateStr, endDateStr, platform, brand) {
+    // As per request, Returns no longer need chunking for any platform
+    var params = { startDate: startDateStr, endDate: endDateStr, platform: platform };
+    if (brand) params.brand = brand;
+    return apiGet(RETURN_TOTALS_PATH, params).catch(function () { return null; });
+  }
+
   function fetchAllPlatformData(uploadMap, fetchStartDate, fetchEndDate, viewMode, originalUploadMap, meeshoAdsUploadDate) {
     const monthStart = toISODate(firstOfMonth(fetchEndDate));
     const pStart = toISODate(fetchStartDate);
@@ -830,14 +946,24 @@
         });
       }
 
-      let pSales = Promise.all([
-        apiGet(SALES_TOTALS_PATH, { startDate: pActualStart, endDate: pEndDate, platform: p.key }).then(function (r) { return readTotals(r && r.data, false); }),
-        apiGet(SALES_TOTALS_PATH, { startDate: pActualStart, endDate: pEndDate, platform: p.key, brand: BRAND_FILTER }).then(function (r) { return readTotals(r && r.data, true); }),
-        apiGet(SALES_TOTALS_PATH, { startDate: monthStart, endDate: pEndDate, platform: p.key }).then(function (r) { return readTotals(r && r.data, false); }),
-        apiGet(SALES_TOTALS_PATH, { startDate: monthStart, endDate: pEndDate, platform: p.key, brand: BRAND_FILTER }).then(function (r) { return readTotals(r && r.data, true); })
-      ]).then(function (res) {
-        return { yAll: res[0], yDal: res[1], mAll: res[2], mDal: res[3] };
-      });
+      let pSales;
+      if (viewMode === 'monthly' || viewMode === 'quarterly') {
+        pSales = Promise.all([
+          fetchChunkedSales(pActualStart, pEndDate, p.key),
+          fetchChunkedSales(pActualStart, pEndDate, p.key, BRAND_FILTER)
+        ]).then(function (res) {
+          return { yAll: res[0], yDal: res[1], mAll: res[0], mDal: res[1] };
+        });
+      } else {
+        pSales = Promise.all([
+          fetchChunkedSales(pActualStart, pEndDate, p.key),
+          fetchChunkedSales(pActualStart, pEndDate, p.key, BRAND_FILTER),
+          fetchChunkedSales(monthStart, pEndDate, p.key),
+          fetchChunkedSales(monthStart, pEndDate, p.key, BRAND_FILTER)
+        ]).then(function (res) {
+          return { yAll: res[0], yDal: res[1], mAll: res[2], mDal: res[3] };
+        });
+      }
 
       function searchAdsSingle(dateObj, attempts, isDaluci) {
         if (attempts <= 0) return Promise.resolve({ date: null, yAds: 0, mAds: 0 });
@@ -859,10 +985,14 @@
       }
 
       let realAdsDatePromise;
-      if (ADS_EXCLUDED_KEYS.indexOf(p.key) !== -1) {
+      if (ADS_EXCLUDED_KEYS.indexOf(p.key) !== -1 || (meeshoAdsUploadDate && meeshoAdsUploadDate[p.key])) {
+        // We already have the date natively, or ads are excluded — no need to search
+        realAdsDatePromise = Promise.resolve(null);
+      } else if (viewMode !== 'daily') {
+        // Do not spam daily API calls just to find the ads upload date for non-daily reports
         realAdsDatePromise = Promise.resolve(null);
       } else {
-        realAdsDatePromise = searchAdsSingle(new Date(), 7, false).then(function(r) { return r.date; });
+        realAdsDatePromise = searchAdsSingle(new Date(), 7, false).then(function (r) { return r.date; });
       }
 
       let pAds;
@@ -879,21 +1009,21 @@
             let finalDate = all.date || dal.date || null;
             if (all.date && dal.date && all.date > dal.date) finalDate = all.date;
             if (all.date && dal.date && dal.date > all.date) finalDate = dal.date;
-            
+
             let yAllAdsToDisplay = all.yAds;
             let yDalAdsToDisplay = dal.yAds;
             let mAllAdsToDisplay = all.mAds;
             let mDalAdsToDisplay = dal.mAds;
-            
+
             if (all.date && finalDate && all.date.getTime() !== finalDate.getTime()) {
-               yAllAdsToDisplay = 0;
-               mAllAdsToDisplay = 0;
+              yAllAdsToDisplay = 0;
+              mAllAdsToDisplay = 0;
             }
             if (dal.date && finalDate && dal.date.getTime() !== finalDate.getTime()) {
-               yDalAdsToDisplay = 0;
-               mDalAdsToDisplay = 0;
+              yDalAdsToDisplay = 0;
+              mDalAdsToDisplay = 0;
             }
-            
+
             return {
               date: finalDate,
               yAllAds: yAllAdsToDisplay,
@@ -903,7 +1033,7 @@
             };
           });
         } else {
-          pAds = pSales.then(function(salesRes) {
+          pAds = pSales.then(function (salesRes) {
             return {
               date: null,
               yAllAds: salesRes.yAll.ads,
@@ -920,18 +1050,6 @@
         const ads = res[1];
         let realAdsDate = res[2];
 
-        // Before July 2026, Ads will not show any data
-        const july2026 = new Date(2026, 6, 1);
-        if (fetchEndDate < july2026) {
-          ads.yAllAds = 0;
-          ads.yDalAds = 0;
-          ads.mAllAds = 0;
-          ads.mDalAds = 0;
-          ads.date = null;
-        }
-        if (realAdsDate && realAdsDate < july2026) {
-          realAdsDate = null;
-        }
 
         // Use the native ads date if available (more accurate than heuristic search)
         var effectiveAdsDateRaw = viewMode === 'daily' ? ads.date : realAdsDate;
@@ -944,13 +1062,13 @@
           lastUpload: lastUpload,
           adsDate: viewMode === 'daily' ? (ads.date || lastUpload) : (effectiveAdsDateRaw || lastUpload),
           adsDateRaw: effectiveAdsDateRaw,
-          yesterday: { 
-            all: { order: sales.yAll.order, gmv: sales.yAll.gmv, ads: ads.yAllAds }, 
-            daluci: { order: sales.yDal.order, gmv: sales.yDal.gmv, ads: ads.yDalAds } 
+          yesterday: {
+            all: { order: sales.yAll.order, gmv: sales.yAll.gmv, ads: ads.yAllAds, returnedUnits: sales.yAll.returnedUnits, returnRate: sales.yAll.returnRate },
+            daluci: { order: sales.yDal.order, gmv: sales.yDal.gmv, ads: ads.yDalAds, returnedUnits: sales.yDal.returnedUnits, returnRate: sales.yDal.returnRate }
           },
-          monthToDate: { 
-            all: { order: sales.mAll.order, gmv: sales.mAll.gmv, ads: ads.mAllAds }, 
-            daluci: { order: sales.mDal.order, gmv: sales.mDal.gmv, ads: ads.mDalAds } 
+          monthToDate: {
+            all: { order: sales.mAll.order, gmv: sales.mAll.gmv, ads: ads.mAllAds, returnedUnits: sales.mAll.returnedUnits, returnRate: sales.mAll.returnRate },
+            daluci: { order: sales.mDal.order, gmv: sales.mDal.gmv, ads: ads.mDalAds, returnedUnits: sales.mDal.returnedUnits, returnRate: sales.mDal.returnRate }
           },
           daysElapsed: lastUpload.getDate()
         };
@@ -960,7 +1078,7 @@
     return Promise.all(calls);
   }
 
-  function zeroTotals() { return { order: 0, gmv: 0, ads: 0 }; }
+  function zeroTotals() { return { order: 0, gmv: 0, ads: 0, returnedUnits: 0, returnRate: 0 }; }
 
   // =====================================================================
   // EDITABLE CELL HELPER
@@ -1062,19 +1180,19 @@
   function readReturnData(resp) {
     var d = (resp && resp.data) ? resp.data : {};
     return {
-      totalReturns:   numOrZero(d.totalReturns),
-      totalQuantity:  numOrZero(d.totalQuantity),
+      totalReturns: numOrZero(d.totalReturns),
+      totalQuantity: numOrZero(d.totalQuantity),
       returnQuantity: numOrZero(d.returnQuantity),
-      rtoQuantity:    numOrZero(d.rtoQuantity)
+      rtoQuantity: numOrZero(d.rtoQuantity)
     };
   }
 
   function addReturnData(a, b) {
     return {
-      totalReturns:   a.totalReturns   + b.totalReturns,
-      totalQuantity:  a.totalQuantity  + b.totalQuantity,
+      totalReturns: a.totalReturns + b.totalReturns,
+      totalQuantity: a.totalQuantity + b.totalQuantity,
       returnQuantity: a.returnQuantity + b.returnQuantity,
-      rtoQuantity:    a.rtoQuantity    + b.rtoQuantity
+      rtoQuantity: a.rtoQuantity + b.rtoQuantity
     };
   }
 
@@ -1083,63 +1201,87 @@
   }
 
   function renderReturnTable(ctx) {
-    // Only render in monthly mode
-    if (state.viewMode !== 'monthly' || !ctx.returnData) {
+    // Only render in monthly and quarterly mode
+    if ((state.viewMode !== 'monthly' && state.viewMode !== 'quarterly') || !ctx.returnData) {
       return;
     }
 
     // Helper: get monthly ALL BRANDS orders for a platform key from perPlatform
-    function getSalesOrders(key) {
-      if (!ctx.perPlatform) return 0;
-      for (var i = 0; i < ctx.perPlatform.length; i++) {
-        if (ctx.perPlatform[i].platform.key === key) {
-          return ctx.perPlatform[i].monthToDate.all.order || 0;
-        }
+    function getSalesOrders(key, isDaluci) {
+      if (key === 'Amazon') {
+        var amz = ctx.perPlatform.find(function (x) { return x.platform.key === 'Amazon'; });
+        var flex = ctx.perPlatform.find(function (x) { return x.platform.key === 'Amazon_Flex'; });
+        var s1 = amz ? (isDaluci ? amz.monthToDate.daluci.order : amz.monthToDate.all.order) : 0;
+        var s2 = flex ? (isDaluci ? flex.monthToDate.daluci.order : flex.monthToDate.all.order) : 0;
+        return s1 + s2;
+      }
+      var pData = ctx.perPlatform.find(function (x) { return x.platform.key === key; });
+      if (pData) {
+        return isDaluci ? pData.monthToDate.daluci.order : pData.monthToDate.all.order;
       }
       return 0;
     }
 
-    // returnData = [amazonResp, amazonFlexResp, flipkartResp, meeshoResp]
-    var rd = ctx.returnData;
-    var amazon   = addReturnData(readReturnData(rd[0]), readReturnData(rd[1])); // Amazon + Amazon_Flex
-    var flipkart = readReturnData(rd[2]);
-    var meesho   = readReturnData(rd[3]);
+    // returnData = { all: [...], daluci: [...] }
+    var rdAll = ctx.returnData.all;
+    var rdDal = ctx.returnData.daluci;
+
+    var amazonAll = addReturnData(readReturnData(rdAll[0]), readReturnData(rdAll[1])); // Amazon + Amazon_Flex
+    var flipkartAll = readReturnData(rdAll[2]);
+    var meeshoAll = readReturnData(rdAll[3]);
+
+    var amazonDal = addReturnData(readReturnData(rdDal[0]), readReturnData(rdDal[1]));
+    var flipkartDal = readReturnData(rdDal[2]);
+    var meeshoDal = readReturnData(rdDal[3]);
 
     // Sales orders per channel (denominator for Return %)
-    var amazonSales   = getSalesOrders('Amazon');
-    var flipkartSales = getSalesOrders('Flipkart');
-    var meeshoSales   = getSalesOrders('Meesho');
+    var amazonSales = getSalesOrders('Amazon', false);
+    var flipkartSales = getSalesOrders('Flipkart', false);
+    var meeshoSales = getSalesOrders('Meesho', false);
+
+    var amazonDalSales = getSalesOrders('Amazon', true);
+    var flipkartDalSales = getSalesOrders('Flipkart', true);
+    var meeshoDalSales = getSalesOrders('Meesho', true);
 
     function fmtReturnPct(returns, sales) {
       if (!sales || sales === 0) return '<span class="na-cell">-</span>';
       return (returns / sales * 100).toFixed(2) + '%';
     }
 
-    var BLANK4 = '<td></td><td></td><td></td><td></td>';
-
     var channels = [
-      { label: 'Amazon',   data: amazon,   sales: amazonSales   },
-      { label: 'Flipkart', data: flipkart, sales: flipkartSales },
-      { label: 'Meesho',   data: meesho,   sales: meeshoSales   }
+      { label: 'Amazon', dataAll: amazonAll, dataDal: amazonDal, salesAll: amazonSales, salesDal: amazonDalSales },
+      { label: 'Flipkart', dataAll: flipkartAll, dataDal: flipkartDal, salesAll: flipkartSales, salesDal: flipkartDalSales },
+      { label: 'Meesho', dataAll: meeshoAll, dataDal: meeshoDal, salesAll: meeshoSales, salesDal: meeshoDalSales }
     ];
 
-    var totalsReturn = channels.reduce(function (acc, ch) {
-      return addReturnData(acc, ch.data);
+    var totalsAll = channels.reduce(function (acc, ch) {
+      return addReturnData(acc, ch.dataAll);
     }, zeroReturn());
-    var totalSales = amazonSales + flipkartSales + meeshoSales;
+
+    var totalsDal = channels.reduce(function (acc, ch) {
+      return addReturnData(acc, ch.dataDal);
+    }, zeroReturn());
+
+    var totalSalesAll = amazonSales + flipkartSales + meeshoSales;
+    var totalSalesDal = amazonDalSales + flipkartDalSales + meeshoDalSales;
 
     var rows = [];
     channels.forEach(function (ch) {
-      var d = ch.data;
+      var dAll = ch.dataAll;
+      var dDal = ch.dataDal;
       rows.push(
         '<tr>' +
         '<td>' + escapeHtml(ch.label) + '</td>' +
-        '<td>' + fmtInt(d.totalReturns)                       + '</td>' +
-        '<td>' + fmtReturnPct(d.totalReturns, ch.sales)       + '</td>' +
-        '<td>' + fmtInt(d.returnQuantity)                     + '</td>' +
-        '<td>' + fmtInt(d.rtoQuantity)                        + '</td>' +
-        // DALUCI Brand columns: blank (data not available from API yet)
-        BLANK4 +
+        // All Brands
+        '<td>' + fmtInt(dAll.totalReturns) + '</td>' +
+        '<td>' + fmtReturnPct(dAll.totalReturns, ch.salesAll) + '</td>' +
+        '<td>' + fmtInt(dAll.returnQuantity) + '</td>' +
+        '<td>' + fmtInt(dAll.rtoQuantity) + '</td>' +
+        // DALUCI Brand
+        '<td>' + fmtInt(dDal.totalReturns) + '</td>' +
+        '<td>' + fmtReturnPct(dDal.totalReturns, ch.salesDal) + '</td>' +
+        '<td>' + fmtInt(dDal.returnQuantity) + '</td>' +
+        '<td>' + fmtInt(dDal.rtoQuantity) + '</td>' +
         '</tr>'
       );
     });
@@ -1147,11 +1289,16 @@
     rows.push(
       '<tr class="total-row">' +
       '<td>Total</td>' +
-      '<td>' + fmtInt(totalsReturn.totalReturns)                    + '</td>' +
-      '<td>' + fmtReturnPct(totalsReturn.totalReturns, totalSales)  + '</td>' +
-      '<td>' + fmtInt(totalsReturn.returnQuantity)                  + '</td>' +
-      '<td>' + fmtInt(totalsReturn.rtoQuantity)                     + '</td>' +
-      BLANK4 +
+      // All Brands Total
+      '<td>' + fmtInt(totalsAll.totalReturns) + '</td>' +
+      '<td>' + fmtReturnPct(totalsAll.totalReturns, totalSalesAll) + '</td>' +
+      '<td>' + fmtInt(totalsAll.returnQuantity) + '</td>' +
+      '<td>' + fmtInt(totalsAll.rtoQuantity) + '</td>' +
+      // DALUCI Brand Total
+      '<td>' + fmtInt(totalsDal.totalReturns) + '</td>' +
+      '<td>' + fmtReturnPct(totalsDal.totalReturns, totalSalesDal) + '</td>' +
+      '<td>' + fmtInt(totalsDal.returnQuantity) + '</td>' +
+      '<td>' + fmtInt(totalsDal.rtoQuantity) + '</td>' +
       '</tr>'
     );
 
@@ -1210,16 +1357,16 @@
     if (ctx.categoryRunrateOverall && ctx.categoryRunrateOverall.data && ctx.categoryRunrateDaluci && ctx.categoryRunrateDaluci.data) {
       const overallData = ctx.categoryRunrateOverall.data;
       const daluciData = ctx.categoryRunrateDaluci.data;
-      
+
       if (overallData.final_summary && daluciData.final_summary) {
         overallOrder = numOrZero(overallData.final_summary.total_order_runrate);
         overallGmv = numOrZero(overallData.final_summary.total_gmv_runrate);
-        
+
         daluciOrder = numOrZero(daluciData.final_summary.total_order_runrate);
         daluciGmv = numOrZero(daluciData.final_summary.total_gmv_runrate);
       }
     }
-    
+
     const share = overallGmv > 0 ? (daluciGmv / overallGmv * 100) : 0;
 
     setEditableRows(els.runrateTableBody,
@@ -1305,22 +1452,16 @@
 
       if (ADS_EXCLUDED_KEYS.indexOf(p.key) !== -1) {
         adsCell = '<span class="na-cell">N/A</span>';
-      } else if (ctx.perPlatform) {
-        let pData = null;
-        for (let i = 0; i < ctx.perPlatform.length; i++) {
-          if (ctx.perPlatform[i].platform.key === p.key) {
-            pData = ctx.perPlatform[i];
-            break;
-          }
+      } else {
+        // Start with a spinner. We will launch a background search if we don't have it natively.
+        adsCell = '<div class="skel-bar ads-date-spinner" id="ads-date-' + p.key + '" style="width:60px"></div>';
+
+        // Launch background search to find the latest ads date
+        if (d && !document.getElementById('ads-date-' + p.key + '-searching')) {
+          setTimeout(function () {
+            findLatestAdsDateBackground(p.key, d);
+          }, 100);
         }
-        if (pData && pData.adsDateRaw) {
-          adsCell = formatDMY(pData.adsDateRaw);
-        } else {
-          adsCell = '<span class="na-cell">—</span>';
-        }
-      } else if (ctx.meeshoAdsUploadDate && ctx.meeshoAdsUploadDate[p.key]) {
-        // Show the actual ads date from API even before platform data loads
-        adsCell = formatDMY(ctx.meeshoAdsUploadDate[p.key]);
       }
 
       rows.push(
@@ -1334,6 +1475,60 @@
     setEditableRows(els.uploadDatesTableBody, rows.join(''));
   }
 
+  // Cache to prevent duplicate searches
+  var adsDateSearchCache = {};
+
+  function findLatestAdsDateBackground(platform, maxSalesDate) {
+    if (adsDateSearchCache[platform]) {
+      var el = document.getElementById('ads-date-' + platform);
+      if (el) {
+        el.outerHTML = adsDateSearchCache[platform] === 'none' ? '<span class="na-cell">—</span>' : formatDMY(adsDateSearchCache[platform]);
+      }
+      return;
+    }
+
+    // Mark as searching so we don't trigger it again
+    var el = document.getElementById('ads-date-' + platform);
+    if (el) el.id = 'ads-date-' + platform + '-searching';
+
+    var daysToCheck = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]; // Check up to 10 days back
+    var currentIdx = 0;
+
+    function checkNextDay() {
+      if (currentIdx >= daysToCheck.length) {
+        adsDateSearchCache[platform] = 'none';
+        var tEl = document.getElementById('ads-date-' + platform + '-searching');
+        if (tEl) tEl.outerHTML = '<span class="na-cell">—</span>';
+        return;
+      }
+
+      var d = addDays(maxSalesDate, -daysToCheck[currentIdx]);
+      var dStr = toISODate(d);
+
+      queuedApiGet(SALES_TOTALS_PATH, { startDate: dStr, endDate: dStr, platform: platform })
+        .then(function (res) {
+          // Use the central readTotals function to ensure we read exactly what the table reads
+          var totals = readTotals(res && res.data, false);
+          var adsVal = totals.ads;
+
+          if (adsVal > 0) {
+            adsDateSearchCache[platform] = d;
+            var tEl = document.getElementById('ads-date-' + platform + '-searching');
+            if (tEl) tEl.outerHTML = formatDMY(d);
+          } else {
+            currentIdx++;
+            checkNextDay();
+          }
+        })
+        .catch(function () {
+          currentIdx++;
+          checkNextDay();
+        });
+    }
+
+    checkNextDay();
+  }
+
   // =====================================================================
   // FORMATTERS / UTILITIES
   // =====================================================================
@@ -1344,8 +1539,8 @@
       a.getDate() === b.getDate();
   }
 
-  function fmtInt(n) { 
-    return Math.round(n) === 0 ? '<span class="na-cell">-</span>' : Math.round(n).toString(); 
+  function fmtInt(n) {
+    return Math.round(n) === 0 ? '<span class="na-cell">-</span>' : Math.round(n).toString();
   }
 
   function fmtAds(n) {
@@ -1370,7 +1565,7 @@
     var SR = '<tr class="skel-row"><td colspan="99"><div class="skel-bar"></div></td></tr>';
     els.channelTableBody.innerHTML = Array(7).fill(SR).join('');
     els.runrateTableBody.innerHTML = Array(3).fill(SR).join('');
-    
+
     // Skeleton rows for Ads Table must match the dynamic colspan
     els.adsTableBody.innerHTML = Array(5).fill(SR).join('');
     // Return table skeleton (only shown in monthly mode)
@@ -1418,7 +1613,7 @@
 
     // Inject temporary style to force desktop layout on mobile
     var styleEl = document.createElement('style');
-    styleEl.innerHTML = 
+    styleEl.innerHTML =
       '.capture-mode .snapshot-area { gap: 28px !important; }' +
       '.capture-mode .tbl-outer--narrow { max-width: 460px !important; }' +
       '.capture-mode .tbl-outer--medium { max-width: 640px !important; }' +
@@ -1435,33 +1630,33 @@
     var savedOverflow = outers.map(function (el) { return el.style.overflow; });
     outers.forEach(function (el) { el.style.overflow = 'visible'; });
 
-    var savedBg  = target.style.background;
+    var savedBg = target.style.background;
     var savedPad = target.style.padding;
     var savedWidth = target.style.width;
     var savedMinWidth = target.style.minWidth;
-    
+
     target.style.background = '#f0ece4';         // warm cream — matches page body
-    target.style.padding    = '20px 28px 36px';  // top / left+right / bottom
+    target.style.padding = '20px 28px 36px';  // top / left+right / bottom
     // Force a desktop-like width so mobile snapshots aren't squished
-    target.style.width      = '1024px';
-    target.style.minWidth   = '1024px';
+    target.style.width = '1024px';
+    target.style.minWidth = '1024px';
 
     function restore() {
       outers.forEach(function (el, i) { el.style.overflow = savedOverflow[i]; });
       target.style.background = savedBg;
-      target.style.padding    = savedPad;
-      target.style.width      = savedWidth;
-      target.style.minWidth   = savedMinWidth;
+      target.style.padding = savedPad;
+      target.style.width = savedWidth;
+      target.style.minWidth = savedMinWidth;
       document.body.classList.remove('capture-mode');
       if (styleEl.parentNode) styleEl.parentNode.removeChild(styleEl);
     }
 
     var opts = {
-      pixelRatio:      2,
-      skipFonts:       true,       // avoid the Google Fonts CORS fetch hanging the promise
+      pixelRatio: 2,
+      skipFonts: true,       // avoid the Google Fonts CORS fetch hanging the promise
       backgroundColor: '#f0ece4',  // cream fill for any transparent gaps
-      width:           1024,
-      height:          target.scrollHeight + 56,
+      width: 1024,
+      height: target.scrollHeight + 56,
       filter: function (node) {
         return !(node.classList && node.classList.contains('inline-edit-input'));
       }
@@ -1473,7 +1668,7 @@
 
     return capture
       .then(function (result) { restore(); return result; })
-      .catch(function (err)   { restore(); throw err; });
+      .catch(function (err) { restore(); throw err; });
   }
 
   // =====================================================================
@@ -1541,10 +1736,11 @@
 
     // Extract the exact period string from the report title (e.g. "05/08/2026" or "Month - August 2026")
     var fullTitle = els.reportTitleCell.textContent;
-    var periodString = fullTitle.replace('DALUCI  |  SALES AND ADS REPORT (', '').slice(0, -1);
+    var periodString = fullTitle.replace('DALUCI  |  SALES, ADS & RETURNS REPORT (', '').replace('DALUCI  |  SALES AND ADS REPORT (', '').slice(0, -1);
     // Remove invisible characters or extra spaces just in case
-    periodString = periodString.replace('DALUCI&nbsp;&nbsp;|&nbsp;&nbsp;SALES AND ADS REPORT (', '').trim();
+    periodString = periodString.replace('DALUCI&nbsp;&nbsp;|&nbsp;&nbsp;SALES, ADS & RETURNS REPORT (', '').replace('DALUCI&nbsp;&nbsp;|&nbsp;&nbsp;SALES AND ADS REPORT (', '').trim();
     if (periodString === '—' || periodString === '') {
+
       var d = addDays(new Date(), -1);
       periodString = pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear();
     }

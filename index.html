@@ -44,35 +44,41 @@
           <span class="cb-sep">·</span>
           <span class="cb-title">Sales and Ads Report</span>
         </div>
-        <div class="cb-center">
-          <span class="cb-dot"></span>
-          <span class="cb-status">API Connected</span>
-          <span class="cb-token" id="cbToken"></span>
-        </div>
-        <div class="cb-right">
+        <div class="cb-middle">
           <span id="lastRefreshed" class="cb-refreshed"></span>
           <div id="refreshIndicator" class="refresh-indicator" hidden>
             <div class="mini-spinner"></div><span>Refreshing…</span>
           </div>
-          <div class="cb-btn-group" id="viewModeGroup">
-            <button class="btn-cb active" data-view="daily">Daily</button>
-            <button class="btn-cb" data-view="weekly">Weekly</button>
-            <button class="btn-cb" data-view="monthly">Monthly</button>
-            <button class="btn-cb" data-view="quarterly">Quarterly</button>
-          </div>
-          <!-- Transparent button card -->
-          <div class="cb-btn-group">
-            <input type="date" id="dateFilter" class="btn-cb" title="Select Date" />
-            <select id="weekFilter" class="btn-cb" title="Select Week" hidden></select>
-            <select id="monthFilter" class="btn-cb" title="Select Month" hidden></select>
-            <select id="quarterFilter" class="btn-cb" title="Select Quarter" hidden></select>
-            <button id="snapshotBtn" class="btn-cb btn-cb-amber" title="Download tables 1–3 as image">📸
-              Snapshot</button>
-            <button id="emailBtn" class="btn-cb btn-cb-green" title="Email dashboard snapshot to team">📧 Email</button>
-            <button id="refreshBtn" class="btn-cb btn-cb-cyan">⟳ Refresh</button>
-            <button id="changeTokenBtn" class="btn-cb">🔑 Token</button>
-            <button id="debugBtn" class="btn-cb">Debug</button>
-            <button id="disconnectBtn" class="btn-cb btn-cb-danger">⏻ Disconnect</button>
+        </div>
+        <div class="cb-center">
+          <span class="cb-dot"></span>
+          <span class="cb-status">API Connected</span>
+          <span class="cb-token" id="cbToken"></span>
+          <button id="changeTokenBtn" class="btn-cb">🔑 Token</button>
+          <button id="disconnectBtn" class="btn-cb btn-cb-danger">⏻ Disconnect</button>
+        </div>
+        <div class="cb-right">
+          <div class="cb-bottom-row">
+            <div class="cb-btn-group" id="viewModeGroup">
+              <button class="btn-cb active" data-view="daily">Daily</button>
+              <button class="btn-cb" data-view="weekly">Weekly</button>
+              <button class="btn-cb" data-view="monthly">Monthly</button>
+              <button class="btn-cb" data-view="quarterly">Quarterly</button>
+            </div>
+            <!-- Transparent button card -->
+            <div class="cb-btn-group">
+              <input type="date" id="dateFilter" class="btn-cb" title="Select Date" />
+              <select id="weekFilter" class="btn-cb" title="Select Week" hidden></select>
+              <select id="monthFilter" class="btn-cb" title="Select Month" hidden></select>
+              <select id="quarterFilter" class="btn-cb" title="Select Quarter" hidden></select>
+              <button id="generateBtn" class="btn-cb btn-cb-generate" title="Generate report for selected period">▶
+                Generate</button>
+              <button id="snapshotBtn" class="btn-cb btn-cb-amber" title="Download tables 1–3 as image">📸
+                Snapshot</button>
+              <button id="emailBtn" class="btn-cb btn-cb-green" title="Email dashboard snapshot to team">📧 Email</button>
+              <button id="refreshBtn" class="btn-cb btn-cb-cyan">⟳ Refresh</button>
+              <button id="debugBtn" class="btn-cb">Debug</button>
+            </div>
           </div>
         </div>
       </div>
@@ -100,7 +106,8 @@
       <div class="ctm-card">
         <div class="ctm-title">📧 Send Dashboard Snapshot</div>
         <p class="ctm-hint">Add additional email recipients (comma-separated). Leave blank to send to defaults.</p>
-        <textarea id="additionalEmailsInput" class="af-textarea" rows="2" placeholder="user@example.com, manager@daluci.com"></textarea>
+        <textarea id="additionalEmailsInput" class="af-textarea" rows="2"
+          placeholder="user@example.com, manager@daluci.com"></textarea>
         <div class="ctm-actions">
           <button id="sendEmailConfirmBtn" class="btn-connect ctm-apply">Send Email</button>
           <button id="cancelEmailBtn" class="btn-cb">Cancel</button>
@@ -111,6 +118,13 @@
     <!-- ══ DASHBOARD CONTENT ══ -->
     <div id="dashContent" class="dash-content" hidden>
 
+      <!-- Generate prompt — visible after connect, before first Generate click -->
+      <div id="generatePrompt" class="generate-prompt">
+        <div class="gp-icon">📊</div>
+        <p class="gp-text">Select a period from the bar above, then click <strong>▶ Generate</strong> to load the
+          report.</p>
+      </div>
+
       <!-- Auth success toast -->
       <div id="authToast" class="auth-toast">✓ API Authentication Successful</div>
 
@@ -118,7 +132,7 @@
       <div id="snapshotFlash" class="snapshot-flash"></div>
 
       <!-- First-load spinner -->
-      <div id="loadState" class="load-state">
+      <div id="loadState" class="load-state" hidden>
         <div class="spinner"></div>
         <div id="loadStateText">Connecting to Database…</div>
       </div>
@@ -137,7 +151,8 @@
             <table class="mis-table" id="channelTable">
               <thead>
                 <tr class="title-row">
-                  <th colspan="6" id="reportTitleCell">DALUCI&nbsp;&nbsp;|&nbsp;&nbsp;SALES AND ADS REPORT (—)</th>
+                  <th colspan="6" id="reportTitleCell">DALUCI&nbsp;&nbsp;|&nbsp;&nbsp;SALES, ADS & RETURNS REPORT (—)
+                  </th>
                 </tr>
                 <tr class="section-row">
                   <th colspan="6">Channel-wise Performance</th>

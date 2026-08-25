@@ -62,20 +62,20 @@ module.exports = async function handler(req, res) {
       <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 700px; margin: 0 auto;">
         <div style="background: #1a2332; color: #ffffff; padding: 20px 28px; border-radius: 10px 10px 0 0;">
           <h1 style="margin: 0; font-size: 22px; letter-spacing: 2px;">DALUCI</h1>
-          <p style="margin: 4px 0 0; font-size: 13px; color: #a0b4c8;">Sales and Ads Report · ${finalPeriod}</p>
+          <p style="margin: 4px 0 0; font-size: 13px; color: #a0b4c8;">Sales, Ads & Returns Report · ${finalPeriod}</p>
         </div>
         <div style="background: #f5f0e8; padding: 24px 28px; border-radius: 0 0 10px 10px;">
           <p style="font-size: 14px; color: #333; margin: 0 0 12px;">Hi Team,</p>
           <p style="font-size: 14px; color: #333; line-height: 1.6; margin: 0 0 12px;">
-            Attached is the latest DALUCI sales and ads report — channel-wise performance, monthly
-            run-rate, and ad spend across all platforms, current for the period: <b>${finalPeriod}</b>.
+            Attached is the latest DALUCI sales, ads, and returns report — channel-wise performance, monthly
+            run-rate, ad spend, and returns across all platforms, current for the period: <b>${finalPeriod}</b>.
           </p>
           <p style="font-size: 14px; color: #333; line-height: 1.6; margin: 0 0 12px;">
             Take a look and flag anything that needs follow-up.
           </p>
           <p style="font-size: 14px; color: #333; margin: 20px 0 0;">Best,<br/>DALUCI Dashboard</p>
           <p style="font-size: 11px; color: #888; margin-top: 22px; border-top: 1px solid #e0d8c8; padding-top: 12px;">
-            This is an automated email from the DALUCI Sales and Ads Report.
+            This is an automated email from the DALUCI Sales, Ads & Returns Report.
           </p>
         </div>
       </div>

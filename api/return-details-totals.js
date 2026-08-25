@@ -1,5 +1,13 @@
 module.exports = async function handler(req, res) {
-  const url = `https://daluci.digital.dhineu.com/bff/v1/dashboard-bff/return-details-totals?${new URLSearchParams(req.query).toString()}`;
+  // Pass query strings properly, handling potential Vercel req.url if req.query has issues
+  let queryString = '';
+  if (req.url && req.url.includes('?')) {
+    queryString = req.url.split('?')[1];
+  } else {
+    queryString = new URLSearchParams(req.query).toString();
+  }
+  
+  const url = `https://daluci.digital.dhineu.com/bff/v1/dashboard-bff/return-details-totals?${queryString}`;
 
   try {
     const authHeader = req.headers.authorization;
@@ -8,12 +16,19 @@ module.exports = async function handler(req, res) {
       headers: {
         'Authorization': authHeader || '',
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        'Accept': 'application/json, */*'
       }
     });
 
-    const json = await fetchRes.json();
-    res.status(fetchRes.status).json(json);
+    const text = await fetchRes.text();
+    let json;
+    try {
+      json = JSON.parse(text);
+      res.status(fetchRes.status).json(json);
+    } catch (e) {
+      console.error('Non-JSON response received:', text);
+      res.status(fetchRes.status).send(text);
+    }
 
   } catch (error) {
     console.error('Error in return-details-totals proxy:', error);

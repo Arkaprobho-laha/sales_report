@@ -263,7 +263,8 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .cb-brand {
@@ -284,12 +285,20 @@ body {
   color: var(--t3);
 }
 
+.cb-middle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
+}
+
 .cb-center {
   display: flex;
   align-items: center;
   gap: 8px;
   flex: 1;
-  justify-content: center;
+  justify-content: flex-end;
 }
 
 .cb-dot {
@@ -335,10 +344,18 @@ body {
 
 .cb-right {
   display: flex;
+  flex: 1 1 100%;
+  flex-direction: column;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
+}
+
+.cb-bottom-row {
+  display: flex;
   flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
 }
 
 .cb-refreshed { font-size: 11px; color: var(--t4); white-space: nowrap; }
@@ -347,6 +364,7 @@ body {
 .cb-btn-group {
   display: flex;
   align-items: center;
+  justify-content: center;
   flex-wrap: wrap;
   gap: 6px;
   padding: 5px 10px;
@@ -425,6 +443,65 @@ body {
 .btn-cb-green:hover {
   background: rgba(46, 160, 96, 0.06);
   color: #126b36;
+}
+
+/* ── Generate button (solid, prominent) ── */
+.btn-cb-generate {
+  background: #1a6b3a;
+  border-color: #1a6b3a;
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow: 0 2px 8px rgba(26, 107, 58, 0.35);
+  transition: background 0.15s, box-shadow 0.2s, transform 0.1s;
+}
+
+.btn-cb-generate:hover {
+  background: #15572f;
+  border-color: #15572f;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(26, 107, 58, 0.45);
+}
+
+.btn-cb-generate:active {
+  transform: scale(0.97);
+}
+
+.btn-cb-generate:disabled {
+  background: #7aad93;
+  border-color: #7aad93;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ── Generate Prompt (shown before first report load) ── */
+.generate-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 260px;
+  text-align: center;
+  padding: 48px 24px;
+}
+
+.gp-icon {
+  font-size: 52px;
+  opacity: 0.35;
+  line-height: 1;
+}
+
+.gp-text {
+  font-size: 15px;
+  color: var(--t3);
+  line-height: 1.7;
+  max-width: 380px;
+}
+
+.gp-text strong {
+  color: #1a6b3a;
+  font-weight: 700;
 }
 
 /* ── Mini refresh indicator ── */
@@ -1094,4 +1171,11 @@ body {
   .snapshot-area { gap: 32px; }
   .mis-table     { font-size: 14px; }
   .mis-table th, .mis-table td { padding: 11px 16px; }
+}
+
+@media (max-width: 1024px) {
+  .cb-left { order: 1; }
+  .cb-center { order: 2; }
+  .cb-middle { order: 3; flex: 1 1 100%; margin-top: 6px; }
+  .cb-right { order: 4; }
 }
