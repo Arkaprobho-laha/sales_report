@@ -900,23 +900,30 @@
     var currentStartLocal = new Date(partsStart[0], partsStart[1] - 1, partsStart[2]);
     var partsEnd = endDateStr.split('-');
     var endLocal = new Date(partsEnd[0], partsEnd[1] - 1, partsEnd[2]);
-    var days = (endLocal - currentStartLocal) / (1000 * 60 * 60 * 24);
-
-    // Only chunk for Amazon + Daluci. Other API calls can handle the full quarter
-    if (days <= 35 || platform !== 'Amazon' || brand !== 'Daluci') {
-      var q = { startDate: startDateStr, endDate: endDateStr, platform: platform };
-      if (brand) q.brand = brand;
-      return apiGet(SALES_TOTALS_PATH, q).then(function (r) { return readTotals(r && r.data, !!brand); });
-    }
 
     var queries = [];
     while (currentStartLocal <= endLocal) {
-      var currentEndLocal = new Date(currentStartLocal.getFullYear(), currentStartLocal.getMonth() + 1, 0);
-      if (currentEndLocal > endLocal) currentEndLocal = endLocal;
-      var q = { startDate: toISODate(currentStartLocal), endDate: toISODate(currentEndLocal), platform: platform };
+      var y = currentStartLocal.getFullYear();
+      var m = currentStartLocal.getMonth();
+      var d = currentStartLocal.getDate();
+      
+      var chunkEndLocal;
+      // 15-day chunks: 1st to 15th, and 16th to end of month
+      if (d <= 15) {
+        chunkEndLocal = new Date(y, m, 15);
+      } else {
+        chunkEndLocal = new Date(y, m + 1, 0); 
+      }
+      
+      if (chunkEndLocal > endLocal) {
+        chunkEndLocal = endLocal;
+      }
+      
+      var q = { startDate: toISODate(currentStartLocal), endDate: toISODate(chunkEndLocal), platform: platform };
       if (brand) q.brand = brand;
       queries.push(q);
-      currentStartLocal = new Date(currentStartLocal.getFullYear(), currentStartLocal.getMonth() + 1, 1);
+      
+      currentStartLocal = new Date(chunkEndLocal.getFullYear(), chunkEndLocal.getMonth(), chunkEndLocal.getDate() + 1);
     }
 
     var promises = queries.map(function (q) {
