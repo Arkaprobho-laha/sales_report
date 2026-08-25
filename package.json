@@ -1,7 +1,6 @@
 {
   "private": true,
   "dependencies": {
-    "@supabase/supabase-js": "^2.110.8",
     "nodemailer": "^6.9.14",
     "xlsx": "^0.18.5"
   }
