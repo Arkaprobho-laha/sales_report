@@ -896,6 +896,13 @@
   }
 
   function fetchChunkedSales(startDateStr, endDateStr, platform, brand) {
+    // Only use 15-day chunking for the Amazon platform; for others, fetch directly
+    if (platform !== 'Amazon') {
+      var query = { startDate: startDateStr, endDate: endDateStr, platform: platform };
+      if (brand) query.brand = brand;
+      return apiGet(SALES_TOTALS_PATH, query).then(function (r) { return readTotals(r && r.data, !!brand); });
+    }
+
     var partsStart = startDateStr.split('-');
     var currentStartLocal = new Date(partsStart[0], partsStart[1] - 1, partsStart[2]);
     var partsEnd = endDateStr.split('-');
