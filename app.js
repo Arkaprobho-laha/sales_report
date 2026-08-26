@@ -1508,16 +1508,34 @@
       const d = mapToUse[p.key];
       let adsCell = '<div class="skel-bar" style="width:60px"></div>';
 
+      let fetchedAdsDate = null;
+      if (ctx.tableData) {
+        for (var i = 0; i < ctx.tableData.length; i++) {
+          var r = ctx.tableData[i];
+          if (r.platform && r.platform.key === p.key) {
+            if (r.adsDateRaw) {
+              fetchedAdsDate = r.adsDateRaw;
+            } else if (r.adsDate && (!r.lastUpload || r.adsDate.getTime() !== r.lastUpload.getTime())) {
+              fetchedAdsDate = r.adsDate;
+            }
+            break;
+          }
+        }
+      }
+
       if (ADS_EXCLUDED_KEYS.indexOf(p.key) !== -1) {
         adsCell = '<span class="na-cell">N/A</span>';
       } else if (ctx.meeshoAdsUploadDate && ctx.meeshoAdsUploadDate[p.key]) {
         adsCell = formatDMY(ctx.meeshoAdsUploadDate[p.key]);
+      } else if (fetchedAdsDate) {
+        adsCell = formatDMY(fetchedAdsDate);
+      } else if (adsDateSearchCache[p.key]) {
+        adsCell = adsDateSearchCache[p.key] === 'none' ? '<span class="na-cell">—</span>' : formatDMY(adsDateSearchCache[p.key]);
       } else {
-        // Start with a spinner. We will launch a background search if we don't have it natively.
-        adsCell = '<div class="skel-bar ads-date-spinner" id="ads-date-' + p.key + '" style="width:60px"></div>';
+        let isSearching = adsDateSearchInProgress[p.key];
+        adsCell = '<div class="skel-bar ads-date-spinner" id="ads-date-' + p.key + (isSearching ? '-searching' : '') + '" style="width:60px"></div>';
 
-        if (d && !document.getElementById('ads-date-' + p.key + '-searching')) {
-          // Launch background search to find the latest ads date for the current/latest period
+        if (d && !isSearching) {
           setTimeout(function () {
             findLatestAdsDateBackground(p.key, d);
           }, 100);
