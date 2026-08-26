@@ -1510,6 +1510,8 @@
 
       if (ADS_EXCLUDED_KEYS.indexOf(p.key) !== -1) {
         adsCell = '<span class="na-cell">N/A</span>';
+      } else if (ctx.meeshoAdsUploadDate && ctx.meeshoAdsUploadDate[p.key]) {
+        adsCell = formatDMY(ctx.meeshoAdsUploadDate[p.key]);
       } else {
         // Start with a spinner. We will launch a background search if we don't have it natively.
         adsCell = '<div class="skel-bar ads-date-spinner" id="ads-date-' + p.key + '" style="width:60px"></div>';
@@ -1535,15 +1537,19 @@
 
   // Cache to prevent duplicate searches
   var adsDateSearchCache = {};
+  var adsDateSearchInProgress = {};
 
   function findLatestAdsDateBackground(platform, maxSalesDate) {
     if (adsDateSearchCache[platform]) {
-      var el = document.getElementById('ads-date-' + platform);
+      var el = document.getElementById('ads-date-' + platform + '-searching') || document.getElementById('ads-date-' + platform);
       if (el) {
         el.outerHTML = adsDateSearchCache[platform] === 'none' ? '<span class="na-cell">—</span>' : formatDMY(adsDateSearchCache[platform]);
       }
       return;
     }
+
+    if (adsDateSearchInProgress[platform]) return;
+    adsDateSearchInProgress[platform] = true;
 
     // Mark as searching so we don't trigger it again
     var el = document.getElementById('ads-date-' + platform);
@@ -1555,6 +1561,7 @@
     function checkNextDay() {
       if (currentIdx >= daysToCheck.length) {
         adsDateSearchCache[platform] = 'none';
+        adsDateSearchInProgress[platform] = false;
         var tEl = document.getElementById('ads-date-' + platform + '-searching');
         if (tEl) tEl.outerHTML = '<span class="na-cell">—</span>';
         return;
@@ -1571,6 +1578,7 @@
 
           if (adsVal > 0) {
             adsDateSearchCache[platform] = d;
+            adsDateSearchInProgress[platform] = false;
             var tEl = document.getElementById('ads-date-' + platform + '-searching');
             if (tEl) tEl.outerHTML = formatDMY(d);
           } else {
