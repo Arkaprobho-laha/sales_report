@@ -1179,3 +1179,6 @@ body {
   .cb-middle { order: 3; flex: 1 1 100%; margin-top: 6px; }
   .cb-right { order: 4; }
 }
+
+.text-green { color: #10b981; font-weight: 600; }
+.text-red { color: #ef4444; font-weight: 600; }

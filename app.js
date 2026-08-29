@@ -973,26 +973,80 @@
           adsDate: null,
           yesterday: { all: zeroTotals(), daluci: zeroTotals() },
           monthToDate: { all: zeroTotals(), daluci: zeroTotals() },
+          previous: { all: zeroTotals(), daluci: zeroTotals() },
           daysElapsed: 0
         });
       }
 
+      // --- Calculate Previous Period Boundaries ---
+      let prStart = null, prEnd = null;
+      const actualLastUpload = originalUploadMap[p.key] || new Date();
+
+      if (viewMode === 'daily') {
+        let currentDay = new Date(pActualStart);
+        let prevDay = addDays(currentDay, -1);
+        prStart = toISODate(prevDay);
+        prEnd = toISODate(prevDay);
+      } else if (viewMode === 'weekly') {
+        let currentStart = new Date(pStart);
+        let currentEnd = new Date(pEndDate);
+        prStart = toISODate(addDays(currentStart, -7));
+        if (actualLastUpload < currentEnd && actualLastUpload >= currentStart) {
+          let daysElapsed = Math.floor((actualLastUpload - currentStart) / (1000 * 60 * 60 * 24));
+          prEnd = toISODate(addDays(new Date(prStart), daysElapsed));
+        } else {
+          prEnd = toISODate(addDays(currentEnd, -7));
+        }
+      } else if (viewMode === 'monthly') {
+        let currentStart = new Date(pStart);
+        let currentEnd = new Date(pEndDate);
+        let pmYear = currentStart.getFullYear();
+        let pmMonth = currentStart.getMonth() - 1;
+        prStart = toISODate(new Date(pmYear, pmMonth, 1));
+
+        if (actualLastUpload < currentEnd && actualLastUpload >= currentStart) {
+          let elapsedDay = actualLastUpload.getDate();
+          let prevMonthMaxDays = new Date(pmYear, pmMonth + 1, 0).getDate();
+          let endDay = Math.min(elapsedDay, prevMonthMaxDays);
+          prEnd = toISODate(new Date(pmYear, pmMonth, endDay));
+        } else {
+          prEnd = toISODate(new Date(pmYear, pmMonth + 1, 0));
+        }
+      } else if (viewMode === 'quarterly') {
+        let currentStart = new Date(pStart);
+        let currentEnd = new Date(pEndDate);
+        let pqYear = currentStart.getFullYear();
+        let pqMonth = currentStart.getMonth() - 3;
+        prStart = toISODate(new Date(pqYear, pqMonth, 1));
+
+        if (actualLastUpload < currentEnd && actualLastUpload >= currentStart) {
+          let endQDate = new Date(pqYear, pqMonth + actualLastUpload.getMonth() - currentStart.getMonth(), actualLastUpload.getDate());
+          prEnd = toISODate(endQDate);
+        } else {
+          prEnd = toISODate(new Date(pqYear, pqMonth + 3, 0));
+        }
+      }
+
       let pSales;
       if (viewMode === 'monthly' || viewMode === 'quarterly') {
-        pSales = Promise.all([
-          fetchChunkedSales(pActualStart, pEndDate, p.key),
-          fetchChunkedSales(pActualStart, pEndDate, p.key, BRAND_FILTER)
-        ]).then(function (res) {
-          return { yAll: res[0], yDal: res[1], mAll: res[0], mDal: res[1] };
+        let pActualAll = fetchChunkedSales(pActualStart, pEndDate, p.key);
+        let pActualDal = p.key === 'Daluci_Website' ? pActualAll : fetchChunkedSales(pActualStart, pEndDate, p.key, BRAND_FILTER);
+        let pPrevAll = fetchChunkedSales(prStart, prEnd, p.key);
+        let pPrevDal = p.key === 'Daluci_Website' ? pPrevAll : fetchChunkedSales(prStart, prEnd, p.key, BRAND_FILTER);
+
+        pSales = Promise.all([pActualAll, pActualDal, pPrevAll, pPrevDal]).then(function (res) {
+          return { yAll: res[0], yDal: res[1], mAll: res[0], mDal: res[1], pAll: res[2], pDal: res[3] };
         });
       } else {
-        pSales = Promise.all([
-          fetchChunkedSales(pActualStart, pEndDate, p.key),
-          fetchChunkedSales(pActualStart, pEndDate, p.key, BRAND_FILTER),
-          fetchChunkedSales(monthStart, pEndDate, p.key),
-          fetchChunkedSales(monthStart, pEndDate, p.key, BRAND_FILTER)
-        ]).then(function (res) {
-          return { yAll: res[0], yDal: res[1], mAll: res[2], mDal: res[3] };
+        let pActualAll = fetchChunkedSales(pActualStart, pEndDate, p.key);
+        let pActualDal = p.key === 'Daluci_Website' ? pActualAll : fetchChunkedSales(pActualStart, pEndDate, p.key, BRAND_FILTER);
+        let pMonthAll = fetchChunkedSales(monthStart, pEndDate, p.key);
+        let pMonthDal = p.key === 'Daluci_Website' ? pMonthAll : fetchChunkedSales(monthStart, pEndDate, p.key, BRAND_FILTER);
+        let pPrevAll = fetchChunkedSales(prStart, prEnd, p.key);
+        let pPrevDal = p.key === 'Daluci_Website' ? pPrevAll : fetchChunkedSales(prStart, prEnd, p.key, BRAND_FILTER);
+
+        pSales = Promise.all([pActualAll, pActualDal, pMonthAll, pMonthDal, pPrevAll, pPrevDal]).then(function (res) {
+          return { yAll: res[0], yDal: res[1], mAll: res[2], mDal: res[3], pAll: res[4], pDal: res[5] };
         });
       }
 
@@ -1023,7 +1077,8 @@
         // Do not spam daily API calls just to find the ads upload date for non-daily reports
         realAdsDatePromise = Promise.resolve(null);
       } else {
-        realAdsDatePromise = searchAdsSingle(new Date(), 7, false).then(function (r) { return r.date; });
+        let searchStartDate = originalUploadMap[p.key] || new Date();
+        realAdsDatePromise = searchAdsSingle(searchStartDate, 7, false).then(function (r) { return r.date; });
       }
 
       let pAds;
@@ -1032,8 +1087,8 @@
       } else {
         if (viewMode === 'daily') {
           pAds = Promise.all([
-            searchAdsSingle(fetchEndDate, 5, false),
-            searchAdsSingle(fetchEndDate, 5, true)
+            searchAdsSingle(lastUpload, 5, false),
+            searchAdsSingle(lastUpload, 5, true)
           ]).then(function (ab) {
             const all = ab[0];
             const dal = ab[1];
@@ -1100,6 +1155,10 @@
           monthToDate: {
             all: { order: sales.mAll.order, gmv: sales.mAll.gmv, ads: ads.mAllAds, returnedUnits: sales.mAll.returnedUnits, returnRate: sales.mAll.returnRate },
             daluci: { order: sales.mDal.order, gmv: sales.mDal.gmv, ads: ads.mDalAds, returnedUnits: sales.mDal.returnedUnits, returnRate: sales.mDal.returnRate }
+          },
+          previous: {
+            all: { order: sales.pAll.order, gmv: sales.pAll.gmv, ads: 0, returnedUnits: 0, returnRate: 0 },
+            daluci: { order: sales.pDal.order, gmv: sales.pDal.gmv, ads: 0, returnedUnits: 0, returnRate: 0 }
           },
           daysElapsed: lastUpload.getDate()
         };
@@ -1336,18 +1395,30 @@
     setEditableRows(els.returnTableBody, rows.join(''));
   }
 
+  function fmtGrowth(g) {
+    if (g === null || isNaN(g) || !isFinite(g)) return '<span class="na-cell">-</span>';
+    var text = Math.abs(g).toFixed(2) + '%';
+    if (g > 0) return '<span class="text-green">+' + text + '</span>';
+    if (g < 0) return '<span class="text-red">-' + text + '</span>';
+    return text;
+  }
+
   function renderChannelTable(ctx) {
     const rows = [];
     let totalAllOrder = 0, totalAllGmv = 0, totalDaluciOrder = 0, totalDaluciGmv = 0;
+    let totalPrevAllGmv = 0, totalPrevDaluciGmv = 0;
 
     ctx.perPlatform.forEach(function (p) {
       const all = p.yesterday.all; const dal = p.yesterday.daluci;
+      const pAll = p.previous.all; const pDal = p.previous.daluci;
       totalAllOrder += all.order; totalAllGmv += all.gmv;
       totalDaluciOrder += dal.order; totalDaluciGmv += dal.gmv;
+      totalPrevAllGmv += pAll.gmv; totalPrevDaluciGmv += pDal.gmv;
     });
 
     ctx.perPlatform.forEach(function (p) {
       const all = p.yesterday.all; const daluci = p.yesterday.daluci;
+      const pAll = p.previous.all; const pDal = p.previous.daluci;
       const contribution = totalDaluciGmv > 0
         ? (daluci.gmv / totalDaluciGmv * 100) : 0;
 
@@ -1356,25 +1427,35 @@
         label += ' - (' + formatDMY(p.lastUpload) + ')';
       }
 
+      const allGrowth = pAll.gmv > 0 ? ((all.gmv - pAll.gmv) / pAll.gmv) * 100 : (all.gmv > 0 ? 100 : null);
+      const daluciGrowth = pDal.gmv > 0 ? ((daluci.gmv - pDal.gmv) / pDal.gmv) * 100 : (daluci.gmv > 0 ? 100 : null);
+
       rows.push(
         '<tr>' +
         '<td>' + escapeHtml(label) + '</td>' +
         '<td>' + fmtInt(all.order) + '</td>' +
         '<td>' + fmtInt(all.gmv) + '</td>' +
+        '<td>' + fmtGrowth(allGrowth) + '</td>' +
         '<td>' + fmtInt(daluci.order) + '</td>' +
         '<td>' + fmtInt(daluci.gmv) + '</td>' +
+        '<td>' + fmtGrowth(daluciGrowth) + '</td>' +
         '<td>' + contribution.toFixed(2) + '%</td>' +
         '</tr>'
       );
     });
+
+    const totalAllGrowth = totalPrevAllGmv > 0 ? ((totalAllGmv - totalPrevAllGmv) / totalPrevAllGmv) * 100 : (totalAllGmv > 0 ? 100 : null);
+    const totalDaluciGrowth = totalPrevDaluciGmv > 0 ? ((totalDaluciGmv - totalPrevDaluciGmv) / totalPrevDaluciGmv) * 100 : (totalDaluciGmv > 0 ? 100 : null);
 
     rows.push(
       '<tr class="total-row">' +
       '<td>Total</td>' +
       '<td>' + fmtInt(totalAllOrder) + '</td>' +
       '<td>' + fmtInt(totalAllGmv) + '</td>' +
+      '<td>' + fmtGrowth(totalAllGrowth) + '</td>' +
       '<td>' + fmtInt(totalDaluciOrder) + '</td>' +
       '<td>' + fmtInt(totalDaluciGmv) + '</td>' +
+      '<td>' + fmtGrowth(totalDaluciGrowth) + '</td>' +
       '<td>100%</td>' +
       '</tr>'
     );
