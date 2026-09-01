@@ -17,11 +17,16 @@
     { key: 'Zepto', label: 'Zepto' },
     { key: 'Blinkit', label: 'Blinkit' },
     { key: 'Amazon_DF', label: 'Amazon Direct' },
-    { key: 'Daluci_Website', label: 'DALUCI Website' }
+    { key: 'Daluci_Website', label: 'DALUCI Website' },
+    { key: 'Amazon_Daluci', label: 'Amazon Daluci' },
+    { key: 'Flipkart_Daluci', label: 'Flipkart Daluci' }
   ];
 
+  // For these platforms All Brands sales === DALUCI Brands sales (single API call needed)
+  const SALES_ALL_SAME_AS_DALUCI = ['Blinkit', 'Daluci_Website', 'Amazon_Daluci', 'Flipkart_Daluci'];
+
   // Excluded from Ads Spend table
-  const ADS_EXCLUDED_KEYS = ['Amazon_DF', 'Daluci_Website'];
+  const ADS_EXCLUDED_KEYS = ['Amazon_DF', 'Daluci_Website', 'Amazon_Daluci', 'Flipkart_Daluci'];
 
   // For these platforms All Brands ads === DALUCI Brands ads
   const ADS_ALL_SAME_AS_DALUCI = ['Zepto', 'Blinkit'];
@@ -1030,20 +1035,20 @@
       let pSales;
       if (viewMode === 'monthly' || viewMode === 'quarterly') {
         let pActualAll = fetchChunkedSales(pActualStart, pEndDate, p.key);
-        let pActualDal = p.key === 'Daluci_Website' ? pActualAll : fetchChunkedSales(pActualStart, pEndDate, p.key, BRAND_FILTER);
+        let pActualDal = SALES_ALL_SAME_AS_DALUCI.indexOf(p.key) !== -1 ? pActualAll : fetchChunkedSales(pActualStart, pEndDate, p.key, BRAND_FILTER);
         let pPrevAll = fetchChunkedSales(prStart, prEnd, p.key);
-        let pPrevDal = p.key === 'Daluci_Website' ? pPrevAll : fetchChunkedSales(prStart, prEnd, p.key, BRAND_FILTER);
+        let pPrevDal = SALES_ALL_SAME_AS_DALUCI.indexOf(p.key) !== -1 ? pPrevAll : fetchChunkedSales(prStart, prEnd, p.key, BRAND_FILTER);
 
         pSales = Promise.all([pActualAll, pActualDal, pPrevAll, pPrevDal]).then(function (res) {
           return { yAll: res[0], yDal: res[1], mAll: res[0], mDal: res[1], pAll: res[2], pDal: res[3] };
         });
       } else {
         let pActualAll = fetchChunkedSales(pActualStart, pEndDate, p.key);
-        let pActualDal = p.key === 'Daluci_Website' ? pActualAll : fetchChunkedSales(pActualStart, pEndDate, p.key, BRAND_FILTER);
+        let pActualDal = SALES_ALL_SAME_AS_DALUCI.indexOf(p.key) !== -1 ? pActualAll : fetchChunkedSales(pActualStart, pEndDate, p.key, BRAND_FILTER);
         let pMonthAll = fetchChunkedSales(monthStart, pEndDate, p.key);
-        let pMonthDal = p.key === 'Daluci_Website' ? pMonthAll : fetchChunkedSales(monthStart, pEndDate, p.key, BRAND_FILTER);
+        let pMonthDal = SALES_ALL_SAME_AS_DALUCI.indexOf(p.key) !== -1 ? pMonthAll : fetchChunkedSales(monthStart, pEndDate, p.key, BRAND_FILTER);
         let pPrevAll = fetchChunkedSales(prStart, prEnd, p.key);
-        let pPrevDal = p.key === 'Daluci_Website' ? pPrevAll : fetchChunkedSales(prStart, prEnd, p.key, BRAND_FILTER);
+        let pPrevDal = SALES_ALL_SAME_AS_DALUCI.indexOf(p.key) !== -1 ? pPrevAll : fetchChunkedSales(prStart, prEnd, p.key, BRAND_FILTER);
 
         pSales = Promise.all([pActualAll, pActualDal, pMonthAll, pMonthDal, pPrevAll, pPrevDal]).then(function (res) {
           return { yAll: res[0], yDal: res[1], mAll: res[2], mDal: res[3], pAll: res[4], pDal: res[5] };
