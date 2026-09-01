@@ -1523,8 +1523,10 @@
       totalYAll += yAll; totalMAll += mAll;
       totalYDaluci += yDaluci; totalMDaluci += mDaluci;
 
+      const isAdsBlank = (yAll === 0 && mAll === 0 && yDaluci === 0 && mDaluci === 0);
+
       let label = p.platform.label;
-      if (state.viewMode === 'daily') {
+      if (state.viewMode === 'daily' && !isAdsBlank) {
         if (p.adsDate) {
           label += ' - (' + formatDMY(p.adsDate) + ')';
         } else if (p.lastUpload) {
