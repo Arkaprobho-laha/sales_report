@@ -888,6 +888,22 @@ body {
   border-top: 2px solid rgba(146,43,33,0.3);
 }
 
+/* ──────────────────────────────────────────
+   TABLE 6 — Return Trend Analysis  (Mustard/Gold)
+   ────────────────────────────────────────── */
+#returnTrendTable .section-row th { background: #9A7D0A; color: #ffffff; }
+#returnTrendTable .group-row   th { background: #fef9e7; color: #111111; }
+#returnTrendTable .col-row     th { background: #fcf3cf; border-bottom-color: rgba(154,125,10,0.15); color: #111111; }
+
+#returnTrendTableBody tr:nth-child(odd)  td { background: #fffdf7; color: #111111; }
+#returnTrendTableBody tr:nth-child(even) td { background: #fffaec; color: #111111; }
+#returnTrendTableBody tr:hover           td { background: #f9e79f !important; color: #000000; }
+#returnTrendTableBody tr.total-row       td {
+  background: #fdf2cc; /* Cream Yellow */
+  color: #5c4700; /* Dark Yellow/Brown for contrast */
+  border-top: 2px solid rgba(154,125,10,0.3);
+}
+
 /* ── N/A cell ── */
 .na-cell { color: rgba(0,0,0,0.4); font-style: italic; }
 

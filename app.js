@@ -145,6 +145,9 @@
     els.uploadDatesTableContainer = document.getElementById('uploadDatesTableContainer');
     els.returnTableOuter = document.getElementById('returnTableOuter');
     els.returnTableBody = document.getElementById('returnTableBody');
+    els.returnTrendTableOuter = document.getElementById('returnTrendTableOuter');
+    els.returnTrendTableBody = document.getElementById('returnTrendTableBody');
+    els.returnTrendHeader = document.getElementById('returnTrendHeader');
     els.generateBtn = document.getElementById('generateBtn');
     els.generatePrompt = document.getElementById('generatePrompt');
     els.snapshotArea = document.getElementById('snapshotArea');
@@ -777,6 +780,7 @@
         els.runrateTableOuter.hidden = (state.viewMode === 'quarterly');
         // Return under Sales table: only show in monthly and quarterly views
         els.returnTableOuter.hidden = (state.viewMode !== 'monthly' && state.viewMode !== 'quarterly');
+        els.returnTrendTableOuter.hidden = (state.viewMode !== 'monthly' && state.viewMode !== 'quarterly');
 
         const hideMonthAds = (state.viewMode === 'monthly' || state.viewMode === 'quarterly');
         els.adsTableCol2.hidden = hideMonthAds;
@@ -805,22 +809,82 @@
         if (state.viewMode === 'monthly' || state.viewMode === 'quarterly') {
           var rStart = toISODate(fetchStartDate);
           var rEnd = toISODate(fetchEndDate);
-          // Amazon = Amazon + Amazon_Flex summed
-          returnDataPromise = Promise.all([
-            fetchChunkedReturns(rStart, rEnd, 'Amazon'),
-            fetchChunkedReturns(rStart, rEnd, 'Amazon_Flex'),
-            fetchChunkedReturns(rStart, rEnd, 'Flipkart'),
-            fetchChunkedReturns(rStart, rEnd, 'Meesho'),
-            fetchChunkedReturns(rStart, rEnd, 'Amazon', 'Daluci'),
-            fetchChunkedReturns(rStart, rEnd, 'Amazon_Flex', 'Daluci'),
-            fetchChunkedReturns(rStart, rEnd, 'Flipkart', 'Daluci'),
-            fetchChunkedReturns(rStart, rEnd, 'Meesho', 'Daluci')
-          ]).then(function (res) {
-            return {
-              all: res.slice(0, 4),
-              daluci: res.slice(4, 8)
-            };
-          });
+
+          var prStart, prEnd, prevD;
+          if (state.viewMode === 'monthly') {
+            let pmYear = fetchStartDate.getFullYear();
+            let pmMonth = fetchStartDate.getMonth() - 1;
+            prevD = new Date(pmYear, pmMonth, 1);
+            prStart = toISODate(prevD);
+            prEnd = toISODate(new Date(pmYear, pmMonth + 1, 0));
+
+            if (els.returnTrendHeader) {
+              let mNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+              els.returnTrendHeader.textContent = 'Return Trend Analysis (' + mNames[prevD.getMonth()] + ' ' + prevD.getFullYear() + ' -> ' + mNames[fetchStartDate.getMonth()] + ' ' + fetchStartDate.getFullYear() + ')';
+            }
+          } else {
+            let pqYear = fetchStartDate.getFullYear();
+            let pqMonth = fetchStartDate.getMonth() - 3;
+            prevD = new Date(pqYear, pqMonth, 1);
+            prStart = toISODate(prevD);
+            prEnd = toISODate(new Date(pqYear, pqMonth + 3, 0));
+
+            if (els.returnTrendHeader) {
+              let qMap = { 3: 1, 6: 2, 9: 3, 0: 4 };
+              let currQ = qMap[fetchStartDate.getMonth()] || 1;
+              let prevQ = qMap[prevD.getMonth()] || 4;
+              els.returnTrendHeader.textContent = 'Return Trend Analysis (Q' + prevQ + ' ' + prevD.getFullYear() + ' -> Q' + currQ + ' ' + fetchStartDate.getFullYear() + ')';
+            }
+          }
+
+          if (state.viewMode === 'monthly') {
+            // Amazon = Amazon + Amazon_Flex summed
+            returnDataPromise = Promise.all([
+              fetchChunkedReturns(rStart, rEnd, 'Amazon'),
+              fetchChunkedReturns(rStart, rEnd, 'Amazon_Flex'),
+              fetchChunkedReturns(rStart, rEnd, 'Flipkart'),
+              fetchChunkedReturns(rStart, rEnd, 'Meesho'),
+              fetchChunkedReturns(rStart, rEnd, 'Amazon', 'Daluci'),
+              fetchChunkedReturns(rStart, rEnd, 'Amazon_Flex', 'Daluci'),
+              fetchChunkedReturns(rStart, rEnd, 'Flipkart', 'Daluci'),
+              fetchChunkedReturns(rStart, rEnd, 'Meesho', 'Daluci'),
+
+              fetchChunkedReturns(prStart, prEnd, 'Amazon'),
+              fetchChunkedReturns(prStart, prEnd, 'Amazon_Flex'),
+              fetchChunkedReturns(prStart, prEnd, 'Flipkart'),
+              fetchChunkedReturns(prStart, prEnd, 'Meesho'),
+              fetchChunkedReturns(prStart, prEnd, 'Amazon', 'Daluci'),
+              fetchChunkedReturns(prStart, prEnd, 'Amazon_Flex', 'Daluci'),
+              fetchChunkedReturns(prStart, prEnd, 'Flipkart', 'Daluci'),
+              fetchChunkedReturns(prStart, prEnd, 'Meesho', 'Daluci')
+            ]).then(function (res) {
+              return {
+                all: res.slice(0, 4),
+                daluci: res.slice(4, 8),
+                prevAll: res.slice(8, 12),
+                prevDaluci: res.slice(12, 16)
+              };
+            });
+          } else {
+            // Quarterly mode: use fair comparison (only matching months)
+            returnDataPromise = Promise.all([
+              fetchQuarterReturnsFairWrapped(fetchStartDate, prevD, 'Amazon'),
+              fetchQuarterReturnsFairWrapped(fetchStartDate, prevD, 'Amazon_Flex'),
+              fetchQuarterReturnsFairWrapped(fetchStartDate, prevD, 'Flipkart'),
+              fetchQuarterReturnsFairWrapped(fetchStartDate, prevD, 'Meesho'),
+              fetchQuarterReturnsFairWrapped(fetchStartDate, prevD, 'Amazon', 'Daluci'),
+              fetchQuarterReturnsFairWrapped(fetchStartDate, prevD, 'Amazon_Flex', 'Daluci'),
+              fetchQuarterReturnsFairWrapped(fetchStartDate, prevD, 'Flipkart', 'Daluci'),
+              fetchQuarterReturnsFairWrapped(fetchStartDate, prevD, 'Meesho', 'Daluci')
+            ]).then(function (res) {
+              return {
+                all: [res[0].curr, res[1].curr, res[2].curr, res[3].curr],
+                daluci: [res[4].curr, res[5].curr, res[6].curr, res[7].curr],
+                prevAll: [res[0].prev, res[1].prev, res[2].prev, res[3].prev],
+                prevDaluci: [res[4].prev, res[5].prev, res[6].prev, res[7].prev]
+              };
+            });
+          }
         }
 
         var runrateOverallPromise = Promise.resolve(null);
@@ -860,6 +924,7 @@
         renderRunrateTable(ctx);
         renderAdsTable(ctx);
         renderReturnTable(ctx);
+        renderReturnTrendTable(ctx);
         renderUploadDatesTable(ctx);
 
         els.loadState.hidden = true;
@@ -902,8 +967,8 @@
   }
 
   function fetchChunkedSales(startDateStr, endDateStr, platform, brand) {
-    // Only use 15-day chunking for the Amazon platform; for others, fetch directly
-    if (platform !== 'Amazon') {
+    // Only use 15-day chunking for Amazon and Amazon_Flex platforms; for others, fetch directly
+    if (platform !== 'Amazon' && platform !== 'Amazon_Flex') {
       var query = { startDate: startDateStr, endDate: endDateStr, platform: platform };
       if (brand) query.brand = brand;
       return apiGet(SALES_TOTALS_PATH, query).then(function (r) { return readTotals(r && r.data, !!brand); });
@@ -956,10 +1021,95 @@
   }
 
   function fetchChunkedReturns(startDateStr, endDateStr, platform, brand) {
-    // As per request, Returns no longer need chunking for any platform
-    var params = { startDate: startDateStr, endDate: endDateStr, platform: platform };
-    if (brand) params.brand = brand;
-    return apiGet(RETURN_TOTALS_PATH, params).catch(function () { return null; });
+    // Only use 15-day chunking for Amazon and Amazon_Flex platforms; for others, fetch directly
+    if (platform !== 'Amazon' && platform !== 'Amazon_Flex') {
+      var params = { startDate: startDateStr, endDate: endDateStr, platform: platform };
+      if (brand) params.brand = brand;
+      return apiGet(RETURN_TOTALS_PATH, params).catch(function () { return null; });
+    }
+
+    var partsStart = startDateStr.split('-');
+    var currentStartLocal = new Date(partsStart[0], partsStart[1] - 1, partsStart[2]);
+    var partsEnd = endDateStr.split('-');
+    var endLocal = new Date(partsEnd[0], partsEnd[1] - 1, partsEnd[2]);
+
+    var queries = [];
+    while (currentStartLocal <= endLocal) {
+      var y = currentStartLocal.getFullYear();
+      var m = currentStartLocal.getMonth();
+      var d = currentStartLocal.getDate();
+
+      var chunkEndLocal;
+      // 15-day chunks: 1st to 15th, and 16th to end of month
+      if (d <= 15) {
+        chunkEndLocal = new Date(y, m, 15);
+      } else {
+        chunkEndLocal = new Date(y, m + 1, 0);
+      }
+
+      if (chunkEndLocal > endLocal) {
+        chunkEndLocal = endLocal;
+      }
+
+      var q = { startDate: toISODate(currentStartLocal), endDate: toISODate(chunkEndLocal), platform: platform };
+      if (brand) q.brand = brand;
+      queries.push(q);
+
+      currentStartLocal = new Date(chunkEndLocal.getFullYear(), chunkEndLocal.getMonth(), chunkEndLocal.getDate() + 1);
+    }
+
+    var promises = queries.map(function (q) {
+      return queuedApiGet(RETURN_TOTALS_PATH, q).catch(function () { return null; });
+    });
+
+    return Promise.all(promises).then(function (results) {
+      var acc = { totalReturns: 0, totalQuantity: 0, returnQuantity: 0, rtoQuantity: 0 };
+      for (var i = 0; i < results.length; i++) {
+        if (results[i] && results[i].data) {
+          acc.totalReturns += numOrZero(results[i].data.totalReturns);
+          acc.totalQuantity += numOrZero(results[i].data.totalQuantity);
+          acc.returnQuantity += numOrZero(results[i].data.returnQuantity);
+          acc.rtoQuantity += numOrZero(results[i].data.rtoQuantity);
+        }
+      }
+      return { data: acc };
+    });
+  }
+
+  function fetchQuarterReturnsFairWrapped(currStart, prevStart, platform, brand) {
+    var cY = currStart.getFullYear(), cM = currStart.getMonth();
+    var pY = prevStart.getFullYear(), pM = prevStart.getMonth();
+
+    var ms = [
+      { cS: new Date(cY, cM, 1), cE: new Date(cY, cM + 1, 0), pS: new Date(pY, pM, 1), pE: new Date(pY, pM + 1, 0) },
+      { cS: new Date(cY, cM + 1, 1), cE: new Date(cY, cM + 2, 0), pS: new Date(pY, pM + 1, 1), pE: new Date(pY, pM + 2, 0) },
+      { cS: new Date(cY, cM + 2, 1), cE: new Date(cY, cM + 3, 0), pS: new Date(pY, pM + 2, 1), pE: new Date(pY, pM + 3, 0) }
+    ];
+
+    var promises = [];
+    for (var i = 0; i < 3; i++) {
+      promises.push(fetchChunkedReturns(toISODate(ms[i].cS), toISODate(ms[i].cE), platform, brand));
+      promises.push(fetchChunkedReturns(toISODate(ms[i].pS), toISODate(ms[i].pE), platform, brand));
+    }
+
+    return Promise.all(promises).then(function (res) {
+      var currSum = zeroReturn();
+      var prevSum = zeroReturn();
+
+      for (var i = 0; i < 3; i++) {
+        var cRaw = res[i * 2];
+        var pRaw = res[i * 2 + 1];
+        var cData = cRaw ? readReturnData(cRaw) : zeroReturn();
+        var pData = pRaw ? readReturnData(pRaw) : zeroReturn();
+
+        // Include month if it's the 1st month OR if the current quarter's month has return data
+        if (i === 0 || cData.totalReturns !== 0 || cData.returnQuantity !== 0 || cData.rtoQuantity !== 0) {
+          currSum = addReturnData(currSum, cData);
+          prevSum = addReturnData(prevSum, pData);
+        }
+      }
+      return { curr: { data: currSum }, prev: { data: prevSum } };
+    });
   }
 
   function fetchAllPlatformData(uploadMap, fetchStartDate, fetchEndDate, viewMode, originalUploadMap, meeshoAdsUploadDate) {
@@ -1338,8 +1488,13 @@
     var flipkartDalSales = getSalesOrders('Flipkart', true);
     var meeshoDalSales = getSalesOrders('Meesho', true);
 
+    function fmtReturnInt(val) {
+      if (!val || val === 0) return '<span class="na-cell">-</span>';
+      return fmtInt(val);
+    }
+
     function fmtReturnPct(returns, sales) {
-      if (!sales || sales === 0) return '<span class="na-cell">-</span>';
+      if (!returns || returns === 0 || !sales || sales === 0) return '<span class="na-cell">-</span>';
       return (returns / sales * 100).toFixed(2) + '%';
     }
 
@@ -1368,15 +1523,15 @@
         '<tr>' +
         '<td>' + escapeHtml(ch.label) + '</td>' +
         // All Brands
-        '<td>' + fmtInt(dAll.totalReturns) + '</td>' +
+        '<td>' + fmtReturnInt(dAll.totalReturns) + '</td>' +
         '<td>' + fmtReturnPct(dAll.totalReturns, ch.salesAll) + '</td>' +
-        '<td>' + fmtInt(dAll.returnQuantity) + '</td>' +
-        '<td>' + fmtInt(dAll.rtoQuantity) + '</td>' +
+        '<td>' + fmtReturnInt(dAll.returnQuantity) + '</td>' +
+        '<td>' + fmtReturnInt(dAll.rtoQuantity) + '</td>' +
         // DALUCI Brand
-        '<td>' + fmtInt(dDal.totalReturns) + '</td>' +
+        '<td>' + fmtReturnInt(dDal.totalReturns) + '</td>' +
         '<td>' + fmtReturnPct(dDal.totalReturns, ch.salesDal) + '</td>' +
-        '<td>' + fmtInt(dDal.returnQuantity) + '</td>' +
-        '<td>' + fmtInt(dDal.rtoQuantity) + '</td>' +
+        '<td>' + fmtReturnInt(dDal.returnQuantity) + '</td>' +
+        '<td>' + fmtReturnInt(dDal.rtoQuantity) + '</td>' +
         '</tr>'
       );
     });
@@ -1385,19 +1540,107 @@
       '<tr class="total-row">' +
       '<td>Total</td>' +
       // All Brands Total
-      '<td>' + fmtInt(totalsAll.totalReturns) + '</td>' +
+      '<td>' + fmtReturnInt(totalsAll.totalReturns) + '</td>' +
       '<td>' + fmtReturnPct(totalsAll.totalReturns, totalSalesAll) + '</td>' +
-      '<td>' + fmtInt(totalsAll.returnQuantity) + '</td>' +
-      '<td>' + fmtInt(totalsAll.rtoQuantity) + '</td>' +
+      '<td>' + fmtReturnInt(totalsAll.returnQuantity) + '</td>' +
+      '<td>' + fmtReturnInt(totalsAll.rtoQuantity) + '</td>' +
       // DALUCI Brand Total
-      '<td>' + fmtInt(totalsDal.totalReturns) + '</td>' +
+      '<td>' + fmtReturnInt(totalsDal.totalReturns) + '</td>' +
       '<td>' + fmtReturnPct(totalsDal.totalReturns, totalSalesDal) + '</td>' +
-      '<td>' + fmtInt(totalsDal.returnQuantity) + '</td>' +
-      '<td>' + fmtInt(totalsDal.rtoQuantity) + '</td>' +
+      '<td>' + fmtReturnInt(totalsDal.returnQuantity) + '</td>' +
+      '<td>' + fmtReturnInt(totalsDal.rtoQuantity) + '</td>' +
       '</tr>'
     );
 
     setEditableRows(els.returnTableBody, rows.join(''));
+  }
+
+  function fmtReturnTrend(g) {
+    if (g === null || isNaN(g) || !isFinite(g)) return '<span class="na-cell">-</span>';
+    var text = Math.abs(g).toFixed(2) + '%';
+    if (g > 0) return '<span class="text-red">+' + text + '</span>';
+    if (g < 0) return '<span class="text-green">-' + text + '</span>';
+    return text;
+  }
+
+  function renderReturnTrendTable(ctx) {
+    if ((state.viewMode !== 'monthly' && state.viewMode !== 'quarterly') || !ctx.returnData || !ctx.returnData.prevAll) {
+      return;
+    }
+
+    var rdAll = ctx.returnData.all;
+    var rdDal = ctx.returnData.daluci;
+    var rdPrevAll = ctx.returnData.prevAll;
+    var rdPrevDal = ctx.returnData.prevDaluci;
+
+    var amzAll = addReturnData(readReturnData(rdAll[0]), readReturnData(rdAll[1]));
+    var flipAll = readReturnData(rdAll[2]);
+    var meesAll = readReturnData(rdAll[3]);
+
+    var amzDal = addReturnData(readReturnData(rdDal[0]), readReturnData(rdDal[1]));
+    var flipDal = readReturnData(rdDal[2]);
+    var meesDal = readReturnData(rdDal[3]);
+
+    var prevAmzAll = addReturnData(readReturnData(rdPrevAll[0]), readReturnData(rdPrevAll[1]));
+    var prevFlipAll = readReturnData(rdPrevAll[2]);
+    var prevMeesAll = readReturnData(rdPrevAll[3]);
+
+    var prevAmzDal = addReturnData(readReturnData(rdPrevDal[0]), readReturnData(rdPrevDal[1]));
+    var prevFlipDal = readReturnData(rdPrevDal[2]);
+    var prevMeesDal = readReturnData(rdPrevDal[3]);
+
+    function getGrowth(curr, prev) {
+      if (!curr || curr === 0) return null; // If current is 0, it means not uploaded yet
+      if (!prev || prev === 0) return (curr > 0 ? 100 : null);
+      return ((curr - prev) / prev) * 100;
+    }
+
+    var channels = [
+      { label: 'Amazon', currAll: amzAll, currDal: amzDal, prevAll: prevAmzAll, prevDal: prevAmzDal },
+      { label: 'Flipkart', currAll: flipAll, currDal: flipDal, prevAll: prevFlipAll, prevDal: prevFlipDal },
+      { label: 'Meesho', currAll: meesAll, currDal: meesDal, prevAll: prevMeesAll, prevDal: prevMeesDal }
+    ];
+
+    var totalsCurrAll = channels.reduce(function (acc, ch) { return addReturnData(acc, ch.currAll); }, zeroReturn());
+    var totalsCurrDal = channels.reduce(function (acc, ch) { return addReturnData(acc, ch.currDal); }, zeroReturn());
+    var totalsPrevAll = channels.reduce(function (acc, ch) { return addReturnData(acc, ch.prevAll); }, zeroReturn());
+    var totalsPrevDal = channels.reduce(function (acc, ch) { return addReturnData(acc, ch.prevDal); }, zeroReturn());
+
+    var rows = [];
+    channels.forEach(function (ch) {
+      var cAll = ch.currAll; var pAll = ch.prevAll;
+      var cDal = ch.currDal; var pDal = ch.prevDal;
+
+      rows.push(
+        '<tr>' +
+        '<td>' + escapeHtml(ch.label) + '</td>' +
+        // ALL BRANDS
+        '<td>' + fmtReturnTrend(getGrowth(cAll.totalReturns, pAll.totalReturns)) + '</td>' +
+        '<td>' + fmtReturnTrend(getGrowth(cAll.returnQuantity, pAll.returnQuantity)) + '</td>' +
+        '<td>' + fmtReturnTrend(getGrowth(cAll.rtoQuantity, pAll.rtoQuantity)) + '</td>' +
+        // DALUCI BRAND
+        '<td>' + fmtReturnTrend(getGrowth(cDal.totalReturns, pDal.totalReturns)) + '</td>' +
+        '<td>' + fmtReturnTrend(getGrowth(cDal.returnQuantity, pDal.returnQuantity)) + '</td>' +
+        '<td>' + fmtReturnTrend(getGrowth(cDal.rtoQuantity, pDal.rtoQuantity)) + '</td>' +
+        '</tr>'
+      );
+    });
+
+    rows.push(
+      '<tr class="total-row">' +
+      '<td>Total</td>' +
+      // ALL BRANDS
+      '<td>' + fmtReturnTrend(getGrowth(totalsCurrAll.totalReturns, totalsPrevAll.totalReturns)) + '</td>' +
+      '<td>' + fmtReturnTrend(getGrowth(totalsCurrAll.returnQuantity, totalsPrevAll.returnQuantity)) + '</td>' +
+      '<td>' + fmtReturnTrend(getGrowth(totalsCurrAll.rtoQuantity, totalsPrevAll.rtoQuantity)) + '</td>' +
+      // DALUCI BRAND
+      '<td>' + fmtReturnTrend(getGrowth(totalsCurrDal.totalReturns, totalsPrevDal.totalReturns)) + '</td>' +
+      '<td>' + fmtReturnTrend(getGrowth(totalsCurrDal.returnQuantity, totalsPrevDal.returnQuantity)) + '</td>' +
+      '<td>' + fmtReturnTrend(getGrowth(totalsCurrDal.rtoQuantity, totalsPrevDal.rtoQuantity)) + '</td>' +
+      '</tr>'
+    );
+
+    setEditableRows(els.returnTrendTableBody, rows.join(''));
   }
 
   function fmtGrowth(g) {
@@ -1740,9 +1983,12 @@
 
     // Skeleton rows for Ads Table must match the dynamic colspan
     els.adsTableBody.innerHTML = Array(5).fill(SR).join('');
-    // Return table skeleton (only shown in monthly mode)
+    // Return tables skeleton (only shown in monthly mode)
     if (!els.returnTableOuter.hidden) {
       els.returnTableBody.innerHTML = Array(4).fill(SR).join('');
+    }
+    if (!els.returnTrendTableOuter.hidden) {
+      els.returnTrendTableBody.innerHTML = Array(4).fill(SR).join('');
     }
     // Upload dates is NOT skeletonised — it renders lazily from first API call
   }
