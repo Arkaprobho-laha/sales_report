@@ -1601,10 +1601,21 @@
       { label: 'Meesho', currAll: meesAll, currDal: meesDal, prevAll: prevMeesAll, prevDal: prevMeesDal }
     ];
 
-    var totalsCurrAll = channels.reduce(function (acc, ch) { return addReturnData(acc, ch.currAll); }, zeroReturn());
-    var totalsCurrDal = channels.reduce(function (acc, ch) { return addReturnData(acc, ch.currDal); }, zeroReturn());
-    var totalsPrevAll = channels.reduce(function (acc, ch) { return addReturnData(acc, ch.prevAll); }, zeroReturn());
-    var totalsPrevDal = channels.reduce(function (acc, ch) { return addReturnData(acc, ch.prevDal); }, zeroReturn());
+    var totalsCurrAll = zeroReturn();
+    var totalsCurrDal = zeroReturn();
+    var totalsPrevAll = zeroReturn();
+    var totalsPrevDal = zeroReturn();
+
+    channels.forEach(function (ch) {
+      if (ch.currAll && (ch.currAll.totalReturns > 0 || ch.currAll.returnQuantity > 0 || ch.currAll.rtoQuantity > 0)) {
+        totalsCurrAll = addReturnData(totalsCurrAll, ch.currAll);
+        totalsPrevAll = addReturnData(totalsPrevAll, ch.prevAll);
+      }
+      if (ch.currDal && (ch.currDal.totalReturns > 0 || ch.currDal.returnQuantity > 0 || ch.currDal.rtoQuantity > 0)) {
+        totalsCurrDal = addReturnData(totalsCurrDal, ch.currDal);
+        totalsPrevDal = addReturnData(totalsPrevDal, ch.prevDal);
+      }
+    });
 
     var rows = [];
     channels.forEach(function (ch) {
