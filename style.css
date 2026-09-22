@@ -825,7 +825,7 @@ body {
 #channelTableBody tr:nth-child(even) td { background: #fafbff; color: #111111; }
 #channelTableBody tr:hover           td { background: #d6e0ff !important; color: #000000; }
 #channelTableBody tr.total-row       td {
-  background: #adc2ff;
+  background: #d9e2ff;
   color: #001766;
   border-top: 2px solid rgba(46,92,255,0.3);
 }

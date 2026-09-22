@@ -1516,6 +1516,7 @@
     var totalSalesDal = amazonDalSales + flipkartDalSales + meeshoDalSales;
 
     var rows = [];
+    rows.push('<tr class="section-row segment-header"><th colspan="9" style="text-align:left; padding-left:14px; background-color: #fdf2f2; color: #000000;">E-Commerce</th></tr>');
     channels.forEach(function (ch) {
       var dAll = ch.dataAll;
       var dDal = ch.dataDal;
@@ -1618,6 +1619,7 @@
     });
 
     var rows = [];
+    rows.push('<tr class="section-row segment-header"><th colspan="7" style="text-align:left; padding-left:14px; background-color: #fef9e7; color: #000000;">E-Commerce</th></tr>');
     channels.forEach(function (ch) {
       var cAll = ch.currAll; var pAll = ch.prevAll;
       var cDal = ch.currDal; var pDal = ch.prevDal;
@@ -1667,48 +1669,90 @@
     let totalAllOrder = 0, totalAllGmv = 0, totalDaluciOrder = 0, totalDaluciGmv = 0;
     let totalPrevAllGmv = 0, totalPrevDaluciGmv = 0;
 
+    // First pass to calculate global totals for "Sales Contribution" denominator
     ctx.perPlatform.forEach(function (p) {
-      const all = p.yesterday.all; const dal = p.yesterday.daluci;
-      const pAll = p.previous.all; const pDal = p.previous.daluci;
-      totalAllOrder += all.order; totalAllGmv += all.gmv;
-      totalDaluciOrder += dal.order; totalDaluciGmv += dal.gmv;
-      totalPrevAllGmv += pAll.gmv; totalPrevDaluciGmv += pDal.gmv;
+      const dal = p.yesterday.daluci;
+      totalDaluciGmv += dal.gmv;
     });
 
-    ctx.perPlatform.forEach(function (p) {
-      const all = p.yesterday.all; const daluci = p.yesterday.daluci;
-      const pAll = p.previous.all; const pDal = p.previous.daluci;
-      const contribution = totalDaluciGmv > 0
-        ? (daluci.gmv / totalDaluciGmv * 100) : 0;
+    const eCommKeys = ['Amazon', 'Flipkart', 'Meesho', 'Amazon_DF', 'Daluci_Website', 'Amazon_Daluci', 'Flipkart_Daluci'];
+    const qCommKeys = ['Zepto', 'Blinkit'];
 
-      let label = p.platform.label;
-      if (state.viewMode === 'daily' && p.lastUpload) {
-        label += ' - (' + formatDMY(p.lastUpload) + ')';
-      }
+    const eComm = ctx.perPlatform.filter(function (p) { return eCommKeys.indexOf(p.platform.key) !== -1; });
+    const qComm = ctx.perPlatform.filter(function (p) { return qCommKeys.indexOf(p.platform.key) !== -1; });
+    const other = ctx.perPlatform.filter(function (p) { return eCommKeys.indexOf(p.platform.key) === -1 && qCommKeys.indexOf(p.platform.key) === -1; });
 
-      const allGrowth = pAll.gmv > 0 ? ((all.gmv - pAll.gmv) / pAll.gmv) * 100 : (all.gmv > 0 ? 100 : null);
-      const daluciGrowth = pDal.gmv > 0 ? ((daluci.gmv - pDal.gmv) / pDal.gmv) * 100 : (daluci.gmv > 0 ? 100 : null);
+    function renderGroup(groupName, platforms) {
+      if (platforms.length === 0) return;
+      let grpAllOrder = 0, grpAllGmv = 0, grpDalOrder = 0, grpDalGmv = 0;
+      let grpPrevAllGmv = 0, grpPrevDalGmv = 0;
+
+      rows.push('<tr class="section-row segment-header"><th colspan="8" style="text-align:left; padding-left:14px; background-color: #eef2ff; color: #000000;">' + escapeHtml(groupName) + '</th></tr>');
+
+      platforms.forEach(function (p) {
+        const all = p.yesterday.all; const daluci = p.yesterday.daluci;
+        const pAll = p.previous.all; const pDal = p.previous.daluci;
+
+        grpAllOrder += all.order; grpAllGmv += all.gmv;
+        grpDalOrder += daluci.order; grpDalGmv += daluci.gmv;
+        grpPrevAllGmv += pAll.gmv; grpPrevDalGmv += pDal.gmv;
+
+        totalAllOrder += all.order; totalAllGmv += all.gmv;
+        totalDaluciOrder += daluci.order;
+        totalPrevAllGmv += pAll.gmv; totalPrevDaluciGmv += pDal.gmv;
+
+        const contribution = totalDaluciGmv > 0 ? (daluci.gmv / totalDaluciGmv * 100) : 0;
+
+        let label = p.platform.label;
+        if (state.viewMode === 'daily' && p.lastUpload) {
+          label += ' - (' + formatDMY(p.lastUpload) + ')';
+        }
+
+        const allGrowth = pAll.gmv > 0 ? ((all.gmv - pAll.gmv) / pAll.gmv) * 100 : (all.gmv > 0 ? 100 : null);
+        const daluciGrowth = pDal.gmv > 0 ? ((daluci.gmv - pDal.gmv) / pDal.gmv) * 100 : (daluci.gmv > 0 ? 100 : null);
+
+        rows.push(
+          '<tr>' +
+          '<td>' + escapeHtml(label) + '</td>' +
+          '<td>' + fmtInt(all.order) + '</td>' +
+          '<td>' + fmtInt(all.gmv) + '</td>' +
+          '<td>' + fmtGrowth(allGrowth) + '</td>' +
+          '<td>' + fmtInt(daluci.order) + '</td>' +
+          '<td>' + fmtInt(daluci.gmv) + '</td>' +
+          '<td>' + fmtGrowth(daluciGrowth) + '</td>' +
+          '<td>' + contribution.toFixed(2) + '%</td>' +
+          '</tr>'
+        );
+      });
+
+      const grpAllGrowth = grpPrevAllGmv > 0 ? ((grpAllGmv - grpPrevAllGmv) / grpPrevAllGmv) * 100 : (grpAllGmv > 0 ? 100 : null);
+      const grpDalGrowth = grpPrevDalGmv > 0 ? ((grpDalGmv - grpPrevDalGmv) / grpPrevDalGmv) * 100 : (grpDalGmv > 0 ? 100 : null);
+      const grpContribution = totalDaluciGmv > 0 ? (grpDalGmv / totalDaluciGmv * 100) : 0;
 
       rows.push(
-        '<tr>' +
-        '<td>' + escapeHtml(label) + '</td>' +
-        '<td>' + fmtInt(all.order) + '</td>' +
-        '<td>' + fmtInt(all.gmv) + '</td>' +
-        '<td>' + fmtGrowth(allGrowth) + '</td>' +
-        '<td>' + fmtInt(daluci.order) + '</td>' +
-        '<td>' + fmtInt(daluci.gmv) + '</td>' +
-        '<td>' + fmtGrowth(daluciGrowth) + '</td>' +
-        '<td>' + contribution.toFixed(2) + '%</td>' +
+        '<tr class="total-row subtotal-row" style="background-color: rgba(0,0,0,0.02);">' +
+        '<td>' + escapeHtml(groupName) + ' Total</td>' +
+        '<td>' + fmtInt(grpAllOrder) + '</td>' +
+        '<td>' + fmtInt(grpAllGmv) + '</td>' +
+        '<td>' + fmtGrowth(grpAllGrowth) + '</td>' +
+        '<td>' + fmtInt(grpDalOrder) + '</td>' +
+        '<td>' + fmtInt(grpDalGmv) + '</td>' +
+        '<td>' + fmtGrowth(grpDalGrowth) + '</td>' +
+        '<td>' + grpContribution.toFixed(2) + '%</td>' +
         '</tr>'
       );
-    });
+    }
+
+    renderGroup('E-Commerce', eComm);
+    renderGroup('Quick Commerce', qComm);
+    renderGroup('Other', other);
 
     const totalAllGrowth = totalPrevAllGmv > 0 ? ((totalAllGmv - totalPrevAllGmv) / totalPrevAllGmv) * 100 : (totalAllGmv > 0 ? 100 : null);
     const totalDaluciGrowth = totalPrevDaluciGmv > 0 ? ((totalDaluciGmv - totalPrevDaluciGmv) / totalPrevDaluciGmv) * 100 : (totalDaluciGmv > 0 ? 100 : null);
 
     rows.push(
       '<tr class="total-row">' +
-      '<td>Total</td>' +
+      '<td>Grand Total</td>' +
       '<td>' + fmtInt(totalAllOrder) + '</td>' +
       '<td>' + fmtInt(totalAllGmv) + '</td>' +
       '<td>' + fmtGrowth(totalAllGrowth) + '</td>' +
@@ -1751,61 +1795,87 @@
     const rows = [];
     let totalYAll = 0, totalMAll = 0, totalYDaluci = 0, totalMDaluci = 0;
 
-    ctx.perPlatform.forEach(function (p) {
-      // Skip Amazon Direct & DALUCI Website
-      if (ADS_EXCLUDED_KEYS.indexOf(p.platform.key) !== -1) return;
-
-      let yAll = p.yesterday.all.ads;
-      let mAll = p.monthToDate.all.ads;
-
-      // Zepto & Blinkit: DALUCI Brand column mirrors All Brands
-      let yDaluci, mDaluci;
-      if (ADS_ALL_SAME_AS_DALUCI.indexOf(p.platform.key) !== -1) {
-        yAll = Math.max(yAll, p.yesterday.daluci.ads);
-        mAll = Math.max(mAll, p.monthToDate.daluci.ads);
-        yDaluci = yAll;
-        mDaluci = mAll;
-      } else if (ADS_DALUCI_BLANK_KEYS.indexOf(p.platform.key) !== -1) {
-        // Meesho: DALUCI Brand ads not available, show blank
-        yDaluci = 0;
-        mDaluci = 0;
-      } else {
-        yDaluci = p.yesterday.daluci.ads;
-        mDaluci = p.monthToDate.daluci.ads;
-      }
-
-      totalYAll += yAll; totalMAll += mAll;
-      totalYDaluci += yDaluci; totalMDaluci += mDaluci;
-
-      const isAdsBlank = (yAll === 0 && mAll === 0 && yDaluci === 0 && mDaluci === 0);
-
-      let label = p.platform.label;
-      if (state.viewMode === 'daily' && !isAdsBlank) {
-        if (p.adsDate) {
-          label += ' - (' + formatDMY(p.adsDate) + ')';
-        } else if (p.lastUpload) {
-          label += ' - (' + formatDMY(p.lastUpload) + ')';
-        }
-      }
-
-      const hideMonthAds = (state.viewMode === 'monthly' || state.viewMode === 'quarterly');
-
-      rows.push(
-        '<tr>' +
-        '<td>' + escapeHtml(label) + '</td>' +
-        '<td>' + fmtAds(yAll) + '</td>' +
-        (hideMonthAds ? '' : '<td>' + fmtAds(mAll) + '</td>') +
-        '<td>' + fmtAds(yDaluci) + '</td>' +
-        (hideMonthAds ? '' : '<td>' + fmtAds(mDaluci) + '</td>') +
-        '</tr>'
-      );
-    });
-
+    const eCommKeys = ['Amazon', 'Flipkart', 'Meesho', 'Amazon_DF', 'Daluci_Website', 'Amazon_Daluci', 'Flipkart_Daluci'];
+    const qCommKeys = ['Zepto', 'Blinkit'];
     const hideMonthAds = (state.viewMode === 'monthly' || state.viewMode === 'quarterly');
+
+    function renderGroup(groupName, platforms) {
+      if (platforms.length === 0) return;
+      let grpYAll = 0, grpMAll = 0, grpYDal = 0, grpMDal = 0;
+      let groupHasData = false;
+      let groupRows = [];
+
+      groupRows.push('<tr class="section-row segment-header"><th colspan="' + (hideMonthAds ? 3 : 5) + '" style="text-align:left; padding-left:14px; background-color: #fcf7ef; color: #000000;">' + escapeHtml(groupName) + '</th></tr>');
+
+      platforms.forEach(function (p) {
+        if (ADS_EXCLUDED_KEYS.indexOf(p.platform.key) !== -1) return;
+        groupHasData = true;
+
+        let yAll = p.yesterday.all.ads;
+        let mAll = p.monthToDate.all.ads;
+
+        let yDaluci, mDaluci;
+        if (ADS_ALL_SAME_AS_DALUCI.indexOf(p.platform.key) !== -1) {
+          yAll = Math.max(yAll, p.yesterday.daluci.ads);
+          mAll = Math.max(mAll, p.monthToDate.daluci.ads);
+          yDaluci = yAll;
+          mDaluci = mAll;
+        } else if (ADS_DALUCI_BLANK_KEYS.indexOf(p.platform.key) !== -1) {
+          yDaluci = 0; mDaluci = 0;
+        } else {
+          yDaluci = p.yesterday.daluci.ads; mDaluci = p.monthToDate.daluci.ads;
+        }
+
+        grpYAll += yAll; grpMAll += mAll;
+        grpYDal += yDaluci; grpMDal += mDaluci;
+
+        totalYAll += yAll; totalMAll += mAll;
+        totalYDaluci += yDaluci; totalMDaluci += mDaluci;
+
+        const isAdsBlank = (yAll === 0 && mAll === 0 && yDaluci === 0 && mDaluci === 0);
+
+        let label = p.platform.label;
+        if (state.viewMode === 'daily' && !isAdsBlank) {
+          if (p.adsDate) { label += ' - (' + formatDMY(p.adsDate) + ')'; }
+          else if (p.lastUpload) { label += ' - (' + formatDMY(p.lastUpload) + ')'; }
+        }
+
+        groupRows.push(
+          '<tr>' +
+          '<td>' + escapeHtml(label) + '</td>' +
+          '<td>' + fmtAds(yAll) + '</td>' +
+          (hideMonthAds ? '' : '<td>' + fmtAds(mAll) + '</td>') +
+          '<td>' + fmtAds(yDaluci) + '</td>' +
+          (hideMonthAds ? '' : '<td>' + fmtAds(mDaluci) + '</td>') +
+          '</tr>'
+        );
+      });
+
+      if (groupHasData) {
+        groupRows.push(
+          '<tr class="total-row subtotal-row" style="background-color: rgba(0,0,0,0.02);">' +
+          '<td>' + escapeHtml(groupName) + ' Total</td>' +
+          '<td>' + fmtAds(grpYAll) + '</td>' +
+          (hideMonthAds ? '' : '<td>' + fmtAds(grpMAll) + '</td>') +
+          '<td>' + fmtAds(grpYDal) + '</td>' +
+          (hideMonthAds ? '' : '<td>' + fmtAds(grpMDal) + '</td>') +
+          '</tr>'
+        );
+        rows.push.apply(rows, groupRows);
+      }
+    }
+
+    const eComm = ctx.perPlatform.filter(function (p) { return eCommKeys.indexOf(p.platform.key) !== -1; });
+    const qComm = ctx.perPlatform.filter(function (p) { return qCommKeys.indexOf(p.platform.key) !== -1; });
+    const other = ctx.perPlatform.filter(function (p) { return eCommKeys.indexOf(p.platform.key) === -1 && qCommKeys.indexOf(p.platform.key) === -1; });
+
+    renderGroup('E-Commerce', eComm);
+    renderGroup('Quick Commerce', qComm);
+    renderGroup('Other', other);
 
     rows.push(
       '<tr class="total-row">' +
-      '<td>Total</td>' +
+      '<td>Grand Total</td>' +
       '<td>' + fmtAds(totalYAll) + '</td>' +
       (hideMonthAds ? '' : '<td>' + fmtAds(totalMAll) + '</td>') +
       '<td>' + fmtAds(totalYDaluci) + '</td>' +
@@ -1846,52 +1916,69 @@
     els.uploadDatesTableContainer.hidden = false;
     const rows = [];
 
-    PLATFORMS.forEach(function (p) {
-      const d = mapToUse[p.key];
-      let adsCell = '<div class="skel-bar" style="width:60px"></div>';
+    const eCommKeys = ['Amazon', 'Flipkart', 'Meesho', 'Amazon_DF', 'Daluci_Website', 'Amazon_Daluci', 'Flipkart_Daluci'];
+    const qCommKeys = ['Zepto', 'Blinkit'];
 
-      let fetchedAdsDate = null;
-      if (ctx.tableData) {
-        for (var i = 0; i < ctx.tableData.length; i++) {
-          var r = ctx.tableData[i];
-          if (r.platform && r.platform.key === p.key) {
-            if (r.adsDateRaw) {
-              fetchedAdsDate = r.adsDateRaw;
-            } else if (r.adsDate && (!r.lastUpload || r.adsDate.getTime() !== r.lastUpload.getTime())) {
-              fetchedAdsDate = r.adsDate;
+    const eComm = PLATFORMS.filter(function (p) { return eCommKeys.indexOf(p.key) !== -1; });
+    const qComm = PLATFORMS.filter(function (p) { return qCommKeys.indexOf(p.key) !== -1; });
+    const other = PLATFORMS.filter(function (p) { return eCommKeys.indexOf(p.key) === -1 && qCommKeys.indexOf(p.key) === -1; });
+
+    function renderGroup(groupName, platforms) {
+      if (platforms.length === 0) return;
+      rows.push('<tr class="section-row segment-header"><th colspan="3" style="text-align:left; padding-left:14px; background-color: #efebe9; color: #000000;">' + escapeHtml(groupName) + '</th></tr>');
+
+      platforms.forEach(function (p) {
+        const d = mapToUse[p.key];
+        let adsCell = '<div class="skel-bar" style="width:60px"></div>';
+
+        let fetchedAdsDate = null;
+        if (ctx.tableData) {
+          for (var i = 0; i < ctx.tableData.length; i++) {
+            var r = ctx.tableData[i];
+            if (r.platform && r.platform.key === p.key) {
+              if (r.adsDateRaw) {
+                fetchedAdsDate = r.adsDateRaw;
+              } else if (r.adsDate && (!r.lastUpload || r.adsDate.getTime() !== r.lastUpload.getTime())) {
+                fetchedAdsDate = r.adsDate;
+              }
+              break;
             }
-            break;
           }
         }
-      }
 
-      if (ADS_EXCLUDED_KEYS.indexOf(p.key) !== -1) {
-        adsCell = '<span class="na-cell">N/A</span>';
-      } else if (ctx.meeshoAdsUploadDate && ctx.meeshoAdsUploadDate[p.key]) {
-        adsCell = formatDMY(ctx.meeshoAdsUploadDate[p.key]);
-      } else if (fetchedAdsDate) {
-        adsCell = formatDMY(fetchedAdsDate);
-      } else if (adsDateSearchCache[p.key]) {
-        adsCell = adsDateSearchCache[p.key] === 'none' ? '<span class="na-cell">—</span>' : formatDMY(adsDateSearchCache[p.key]);
-      } else {
-        let isSearching = adsDateSearchInProgress[p.key];
-        adsCell = '<div class="skel-bar ads-date-spinner" id="ads-date-' + p.key + (isSearching ? '-searching' : '') + '" style="width:60px"></div>';
+        if (ADS_EXCLUDED_KEYS.indexOf(p.key) !== -1) {
+          adsCell = '<span class="na-cell">N/A</span>';
+        } else if (ctx.meeshoAdsUploadDate && ctx.meeshoAdsUploadDate[p.key]) {
+          adsCell = formatDMY(ctx.meeshoAdsUploadDate[p.key]);
+        } else if (fetchedAdsDate) {
+          adsCell = formatDMY(fetchedAdsDate);
+        } else if (adsDateSearchCache[p.key]) {
+          adsCell = adsDateSearchCache[p.key] === 'none' ? '<span class="na-cell">—</span>' : formatDMY(adsDateSearchCache[p.key]);
+        } else {
+          let isSearching = adsDateSearchInProgress[p.key];
+          adsCell = '<div class="skel-bar ads-date-spinner" id="ads-date-' + p.key + (isSearching ? '-searching' : '') + '" style="width:60px"></div>';
 
-        if (d && !isSearching) {
-          setTimeout(function () {
-            findLatestAdsDateBackground(p.key, d);
-          }, 100);
+          if (d && !isSearching) {
+            setTimeout(function () {
+              findLatestAdsDateBackground(p.key, d);
+            }, 100);
+          }
         }
-      }
 
-      rows.push(
-        '<tr>' +
-        '<td>' + escapeHtml(p.label) + '</td>' +
-        '<td>' + (d ? formatDMY(d) : '<span class="na-cell">—</span>') + '</td>' +
-        '<td>' + adsCell + '</td>' +
-        '</tr>'
-      );
-    });
+        rows.push(
+          '<tr>' +
+          '<td>' + escapeHtml(p.label) + '</td>' +
+          '<td>' + (d ? formatDMY(d) : '<span class="na-cell">—</span>') + '</td>' +
+          '<td>' + adsCell + '</td>' +
+          '</tr>'
+        );
+      });
+    }
+
+    renderGroup('E-Commerce', eComm);
+    renderGroup('Quick Commerce', qComm);
+    renderGroup('Other', other);
+
     setEditableRows(els.uploadDatesTableBody, rows.join(''));
   }
 
